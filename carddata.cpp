@@ -1,0 +1,123 @@
+#include "CardData.h"
+#include "EffectAction.h"
+#include <QDebug>
+CardDatabase& CardDatabase::instance() {
+    static CardDatabase db;
+    return db;
+}
+CardDatabase::CardDatabase() {
+    registerDefaults();
+}
+void CardDatabase::registerDefaults() {
+    // ── 打击（修改）──
+    {
+        auto c = std::make_unique<CardData>();
+        c->id        = "strike";
+        c->name      = "打击";
+        c->cost      = 1;
+        c->desc      = "造成 6 点伤害。若字符串空间末尾为数字，消耗之并造成等量伤害。";
+        c->imagePath = ":/cards/strike.png";
+        // 效果1：无条件 6 伤害
+        c->effects.push_back(
+            Effect(std::make_unique<DamageAction>(EffectValue::fixed(6)))
+            );
+        // 效果2：如果最后字符是数字 → 消耗并造成对应伤害
+        c->effects.push_back(
+            Effect(std::make_unique<LastCharIsDigitCondition>(),
+                   std::make_unique<ConsumeLastDigitDamageAction>())
+            );
+        m_cards[c->id] = std::move(c);
+    }
+    // ── 防御（修改）──
+    {
+        auto c = std::make_unique<CardData>();
+        c->id        = "defend";
+        c->name      = "防御";
+        c->cost      = 1;
+        c->desc      = "获得 5 点格挡。若字符串空间末尾为字母，消耗之并再获得 5 点格挡。";
+        c->imagePath = ":/cards/defend.png";
+        // 效果1：无条件 5 格挡
+        c->effects.push_back(
+            Effect(std::make_unique<BlockAction>(EffectValue::fixed(5)))
+            );
+        // 效果2：如果最后字符是字母 → 消耗并再获得 5 格挡
+        c->effects.push_back(
+            Effect(std::make_unique<LastCharIsAlphaCondition>(),
+                   std::make_unique<ConsumeLastAlphaBlockAction>(5))
+            );
+        m_cards[c->id] = std::move(c);
+    }
+    // ── ★ 新增：随机字母 ──
+    {
+        auto c = std::make_unique<CardData>();
+        c->id        = "random_letter";
+        c->name      = "随机字母";
+        c->cost      = 0;
+        c->desc      = "向字符串空间写入一个随机字母（A-Z）。";
+        c->imagePath = "";   // 暂无卡图
+        c->effects.push_back(
+            Effect(std::make_unique<WriteRandomLetterAction>())
+            );
+        m_cards[c->id] = std::move(c);
+    }
+    // ── ★ 新增：随机数字 ──
+    {
+        auto c = std::make_unique<CardData>();
+        c->id        = "random_digit";
+        c->name      = "随机数字";
+        c->cost      = 0;
+        c->desc      = "向字符串空间写入一个随机数字（0-9）。";
+        c->imagePath = "";   // 暂无卡图
+        c->effects.push_back(
+            Effect(std::make_unique<WriteRandomDigitAction>())
+            );
+        m_cards[c->id] = std::move(c);
+    }
+    // ── ★ 清空爆破 ──
+    {
+        auto c = std::make_unique<CardData>();
+        c->id        = "clear_burst";
+        c->name      = "清空爆破";
+        c->cost      = 2;                // 你可按需调
+        c->desc      = "清空字符串空间，造成原长度×4伤害。若原长度≥5，伤害翻倍。";
+        c->imagePath = "";
+        c->effects.push_back(
+            Effect(std::make_unique<ClearStringDamageAction>())
+            );
+        m_cards[c->id] = std::move(c);
+    }
+    // ── ★ 字母连写 ──
+    {
+        auto c = std::make_unique<CardData>();
+        c->id        = "triple_letter";
+        c->name      = "字母连写";
+        c->cost      = 1;
+        c->desc      = "向字符串空间写入三个随机字母。";
+        c->imagePath = "";
+        c->effects.push_back(Effect(std::make_unique<WriteRandomLetterAction>()));
+        c->effects.push_back(Effect(std::make_unique<WriteRandomLetterAction>()));
+        c->effects.push_back(Effect(std::make_unique<WriteRandomLetterAction>()));
+        m_cards[c->id] = std::move(c);
+    }
+    // ── ★ 数字差力量 ──
+    {
+        auto c = std::make_unique<CardData>();
+        c->id        = "digit_diff_strength";
+        c->name      = "数字差力量";
+        c->cost      = 1;
+        c->desc      = "若字符串最后两位均为数字，消耗之并获得差值绝对值的力量。";
+        c->imagePath = "";
+        c->effects.push_back(
+            Effect(std::make_unique<ConsumeLastTwoDigitsStrengthAction>())
+            );
+        m_cards[c->id] = std::move(c);
+    }
+}
+const CardData* CardDatabase::cardById(const QString& id) const {
+    auto it = m_cards.find(id);
+    if (it != m_cards.end()) {
+        return it->second.get();   // unordered_map: it->second 是 unique_ptr&
+    }
+    qWarning() << "CardData not found:" << id;
+    return nullptr;
+}

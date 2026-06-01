@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resources/cards/strike.png</file>
+        <file>resources/cards/defend.png</file>
+        <file>resources/cards/bg.jpg</file>
+    </qresource>
+    <qresource prefix="/new/prefix1"/>
+</RCC>

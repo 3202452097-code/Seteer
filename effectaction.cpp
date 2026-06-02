@@ -20,11 +20,8 @@ QString BlockAction::description() const {
 }
 // ── Draw ──
 void DrawAction::execute(BattleContext& ctx) {
-    for (int i = 0; i < m_count; i++) {
-        if (ctx.drawPile->isEmpty())
-            ctx.shuffleDiscardIntoDraw();
-        if (ctx.drawPile->isEmpty()) break;
-        ctx.hand->append(ctx.drawPile->takeLast());
+    if (ctx.drawCards) {
+        ctx.drawCards(m_count);   // ★ 一行搞定
     }
 }
 QString DrawAction::description() const {

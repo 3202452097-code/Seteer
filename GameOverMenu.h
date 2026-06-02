@@ -1,24 +1,15 @@
 #ifndef GAMEOVERMENU_H
 #define GAMEOVERMENU_H
-
 #include <QWidget>
-#include <QPushButton>
-#include <QLabel>
-
-class Game;
-
 class GameOverMenu : public QWidget
 {
     Q_OBJECT
-
 public:
-    explicit GameOverMenu(Game* game, bool isVictory, QWidget* parent = nullptr);
-
-private slots:
-    void onReturnToMenu();
-
+    // ★ 不再需要 Game* 参数
+    explicit GameOverMenu(bool isVictory, QWidget* parent = nullptr);
+signals:
+    void returnToMenu();  // ★ 发信号而不是直调 Game
 private:
-    Game* m_game;
+    void onReturnClicked();
 };
-
 #endif // GAMEOVERMENU_H

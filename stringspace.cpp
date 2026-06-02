@@ -1,8 +1,8 @@
 #include "StringSpace.h"
 void StringSpace::setText(const QString& text) {
     QString truncated = text.length() > 20 ? text.right(20) : text;
-    if (m_content != text) {
-        m_content = text;
+    if (m_content != truncated) {
+        m_content = truncated;
         if (onChanged) onChanged();
     }
 }

@@ -1,7 +1,13 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "runmanager.h"
 #include "game.h"
+#include "EventPage.h"
+#include "GameOverMenu.h"
+#include "blessingdata.h"
+#include "carddata.h"
 
+#include <QStackedWidget>
 #include <QMessageBox>
 
 MainWindow::MainWindow(QWidget *parent)
@@ -9,8 +15,8 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-
     setWindowTitle("Seteer");
+    ui->stackedWidget->setCurrentIndex(0);
 }
 
 MainWindow::~MainWindow()
@@ -20,64 +26,214 @@ MainWindow::~MainWindow()
 
 void MainWindow::showMainMenu()
 {
-    // 显示主窗口
-    show();
-    // 激活主窗口
-    raise();
-    activateWindow();
-}
-
-void MainWindow::hideMainMenu()
-{
-    // 隐藏主窗口
-    hide();
+    ui->stackedWidget->setCurrentIndex(0);
 }
 
 void MainWindow::startGame(bool loadSave)
 {
-    // 如果已有游戏实例，先删除
+    Q_UNUSED(loadSave);
+    cleanupRun();
+
+    m_runManager = new RunManager(this);
+
+    connect(m_runManager, &RunManager::runFinished,
+            this, &MainWindow::onRunFinished);
+    connect(m_runManager, &RunManager::blessingOptionsAvailable,
+            this, &MainWindow::onBlessingOptions);
+    connect(m_runManager, &RunManager::cardPickOptionsAvailable,
+            this, &MainWindow::onCardPickOptions);
+    connect(m_runManager, &RunManager::restOptionAvailable,
+            this, &MainWindow::onRestOption);
+    connect(m_runManager, &RunManager::battleStarting,
+            this, &MainWindow::onBattleFloor);
+
+    connect(this, &MainWindow::blessingSelected,
+            m_runManager, &RunManager::onBlessingChosen);
+    connect(this, &MainWindow::cardSelected,
+            m_runManager, &RunManager::onCardChosen);
+    connect(this, &MainWindow::restSelected,
+            m_runManager, &RunManager::onRestChosen);
+
+    m_runManager->start();
+}
+
+void MainWindow::cleanupRun()
+{
     if (m_game) {
+        ui->stackedWidget->removeWidget(m_game);
         m_game->deleteLater();
         m_game = nullptr;
     }
-
-    // 创建游戏窗口（作为独立窗口，不嵌入主窗口）
-    m_game = new Game();
-    m_game->setAttribute(Qt::WA_DeleteOnClose);  // 关闭时自动删除
-    m_game->initGame(1280, 720, "Seteer - 游戏中");
-
-    // 连接游戏窗口的销毁信号，以便在游戏关闭时重新显示主菜单
-    connect(m_game, &Game::destroyed, this, [this]() {
-        showMainMenu();
-        m_game = nullptr;
-    });
-
-    // 隐藏主菜单，显示游戏
-    hideMainMenu();
-    m_game->show();
-
-    // 如果需要加载存档
-    if (loadSave) {
-        m_game->loadGame();
+    if (m_eventPage) {
+        ui->stackedWidget->removeWidget(m_eventPage);
+        m_eventPage->deleteLater();
+        m_eventPage = nullptr;
+    }
+    if (m_runManager) {
+        m_runManager->deleteLater();
+        m_runManager = nullptr;
     }
 }
 
+// ══════════════════════════════════════════
+// ★ 关键：每个事件方法都用 addWidget + setCurrentWidget
+// ══════════════════════════════════════════
+
+void MainWindow::onBlessingOptions(const QList<QString>& ids)
+{
+    qDebug() << "[DEBUG] onBlessingOptions received" << ids.size() << "blessings:" << ids;
+
+    // 清理旧 EventPage
+    if (m_eventPage) {
+        ui->stackedWidget->removeWidget(m_eventPage);
+        m_eventPage->deleteLater();
+        m_eventPage = nullptr;
+    }
+
+    m_eventPage = new EventPage(this);
+    connect(m_eventPage, &EventPage::blessingChosen, this, &MainWindow::blessingSelected);
+    connect(m_eventPage, &EventPage::cardChosen,     this, &MainWindow::cardSelected);
+    connect(m_eventPage, &EventPage::restChosen,     this, &MainWindow::restSelected);
+
+    QList<QPair<QString, QString>> options;
+    for (const QString& id : ids) {
+        const BlessingData* b = BlessingDatabase::instance().blessingById(id);
+        if (b) options.append({b->name, b->desc});
+    }
+    m_eventPage->showBlessingOptions(ids, options);
+
+    // ★ 加进 stackedWidget 并切换
+    ui->stackedWidget->addWidget(m_eventPage);
+    ui->stackedWidget->setCurrentWidget(m_eventPage);
+}
+
+void MainWindow::onCardPickOptions(const QList<QString>& ids)
+{
+    if (m_eventPage) {
+        ui->stackedWidget->removeWidget(m_eventPage);
+        m_eventPage->deleteLater();
+        m_eventPage = nullptr;
+    }
+
+    m_eventPage = new EventPage(this);
+    connect(m_eventPage, &EventPage::blessingChosen, this, &MainWindow::blessingSelected);
+    connect(m_eventPage, &EventPage::cardChosen,     this, &MainWindow::cardSelected);
+    connect(m_eventPage, &EventPage::restChosen,     this, &MainWindow::restSelected);
+
+    QList<QPair<QString, QString>> options;
+    for (const QString& id : ids) {
+        const CardData* cd = CardDatabase::instance().cardById(id);
+        if (cd) options.append({cd->name, cd->desc});
+    }
+    m_eventPage->showCardPickOptions(ids, options);
+
+    ui->stackedWidget->addWidget(m_eventPage);
+    ui->stackedWidget->setCurrentWidget(m_eventPage);
+}
+
+void MainWindow::onRestOption(int healAmount)
+{
+    if (m_eventPage) {
+        ui->stackedWidget->removeWidget(m_eventPage);
+        m_eventPage->deleteLater();
+        m_eventPage = nullptr;
+    }
+
+    m_eventPage = new EventPage(this);
+    connect(m_eventPage, &EventPage::blessingChosen, this, &MainWindow::blessingSelected);
+    connect(m_eventPage, &EventPage::cardChosen,     this, &MainWindow::cardSelected);
+    connect(m_eventPage, &EventPage::restChosen,     this, &MainWindow::restSelected);
+
+    m_eventPage->showRestOption(healAmount);
+
+    ui->stackedWidget->addWidget(m_eventPage);
+    ui->stackedWidget->setCurrentWidget(m_eventPage);
+}
+
+void MainWindow::onBattleFloor()
+{
+    if (m_game) {
+        ui->stackedWidget->removeWidget(m_game);
+        m_game->deleteLater();
+        m_game = nullptr;
+    }
+    if (m_eventPage) {
+        ui->stackedWidget->removeWidget(m_eventPage);
+        m_eventPage->deleteLater();
+        m_eventPage = nullptr;
+    }
+
+    m_game = new Game(this);
+    connect(m_game, &Game::battleFinished, this, &MainWindow::onBattleFinished);
+
+    if (m_runManager) {
+        m_game->setRunDeck(m_runManager->playerDeck());
+        m_game->setRunBlessings(m_runManager->playerBlessings());
+        m_game->setPlayerStartHP(m_runManager->playerHP());
+        m_game->setPlayerStartStrength(0);
+    }
+
+    ui->stackedWidget->addWidget(m_game);
+    ui->stackedWidget->setCurrentWidget(m_game);
+    m_game->initGame(1280, 720, "");
+}
+
+void MainWindow::startBattleWithData(const QList<Card>& deck,
+                                     const QList<QString>& blessings,
+                                     int hp, int strength)
+{
+    if (!m_game) return;
+    m_game->setRunDeck(deck);
+    m_game->setRunBlessings(blessings);
+    m_game->setPlayerStartHP(hp);
+    m_game->setPlayerStartStrength(strength);
+}
+
+void MainWindow::onBattleFinished(bool victory)
+{
+    GameOverMenu* menu = new GameOverMenu(victory, this);
+    menu->setGeometry((width() - 300) / 2, (height() - 180) / 2, 300, 180);
+    menu->show();
+
+    connect(menu, &GameOverMenu::returnToMenu, this, [this, menu, victory]() {
+        menu->deleteLater();
+
+        if (m_game && victory) {
+            m_runManager->updatePlayerData(
+                m_game->runDeck(),
+                m_game->player().hp(),
+                0);
+        }
+
+        if (m_runManager) {
+            m_runManager->onBattleFinished(victory);
+        }
+    });
+}
+
+void MainWindow::onRunFinished()
+{
+    cleanupRun();
+    showMainMenu();
+}
+
+// ==================== 按钮 ====================
 void MainWindow::on_newGameButton_clicked()
 {
     startGame(false);
 }
+
 void MainWindow::on_loadGameButton_clicked()
 {
-    startGame(true);
+    // [临时注释] 读档暂不可用
 }
+
 void MainWindow::on_exitButton_clicked()
 {
     close();
 }
-    void MainWindow::on_actionSaveGame_triggered()
+
+void MainWindow::on_actionSaveGame_triggered()
 {
-    if (m_game&& m_game->isVisible())
-    {
-        m_game->saveGame();
-    }
+    // [临时注释] 存档暂不可用
 }

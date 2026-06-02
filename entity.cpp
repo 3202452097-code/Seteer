@@ -5,7 +5,7 @@ Entity::Entity(int maxHp) : m_hp(maxHp), m_maxHp(maxHp) {}
 void Entity::setHP(int v)   { m_hp = qMax(0, qMin(v, m_maxHp)); }
 void Entity::setBlock(int v) { m_block = qMax(0, v); }
 void Entity::takeDamage(int dmg) {
-    if (dmg <= 0) return;
+    if (dmg <= 0 || isDead()) return;
     if (m_block > 0) {
         int blocked = qMin(dmg, m_block);
         m_block -= blocked;

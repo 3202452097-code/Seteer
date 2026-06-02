@@ -37,12 +37,19 @@ add_executable(Seteer
   effect.h
   entity.h entity.cpp
   BattleContext.h
-  mainwindow.h mainwindow.cpp mainwindow.ui
-  savedata.h savedata.cpp
-  ../image/bg.jpg
+  mainwindow.h
+  mainwindow.cpp
+
+  savedata.h
+  savedata.cpp
   GameOverMenu.h
   GameOverMenu.cpp
-
+  blessingdata.h
+  blessingdata.cpp
+  runmanager.h
+  runmanager.cpp
+  mainwindow.ui
+  eventpage.h eventpage.cpp
 )
 target_link_libraries(Seteer PRIVATE Qt${QT_VERSION_MAJOR}::Core)
 target_link_libraries(Seteer PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)

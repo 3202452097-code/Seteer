@@ -6,70 +6,75 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
-    <height>600</height>
+    <width>1280</width>
+    <height>720</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
-  </property>
-  <property name="styleSheet">
-   <string notr="true">border-image: url(:/resources/cards/bg.jpg);</string>
+   <string>Seteer</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QPushButton" name="newGameButton">
+   <widget class="QStackedWidget" name="stackedWidget">
     <property name="geometry">
      <rect>
-      <x>270</x>
-      <y>150</y>
-      <width>80</width>
-      <height>18</height>
+      <x>0</x>
+      <y>0</y>
+      <width>1280</width>
+      <height>720</height>
      </rect>
     </property>
-    <property name="styleSheet">
-     <string notr="true">alternate-background-color: rgb(85, 255, 127);
-color: rgb(255, 255, 255);
-font: 700 9pt &quot;Microsoft YaHei&quot;;</string>
-    </property>
-    <property name="text">
-     <string>新游戏</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="loadGameButton">
-    <property name="geometry">
-     <rect>
-      <x>270</x>
-      <y>190</y>
-      <width>80</width>
-      <height>18</height>
-     </rect>
-    </property>
-    <property name="styleSheet">
-     <string notr="true">alternate-background-color: rgb(85, 255, 127);
-color: rgb(255, 255, 255);
-font: 700 9pt &quot;Microsoft YaHei&quot;;</string>
-    </property>
-    <property name="text">
-     <string>继续游戏</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="exitButton">
-    <property name="geometry">
-     <rect>
-      <x>270</x>
-      <y>230</y>
-      <width>80</width>
-      <height>18</height>
-     </rect>
-    </property>
-    <property name="styleSheet">
-     <string notr="true">alternate-background-color: rgb(85, 255, 127);
-color: rgb(255, 255, 255);
-font: 700 9pt &quot;Microsoft YaHei&quot;;</string>
-    </property>
-    <property name="text">
-     <string>退出</string>
-    </property>
+    <widget class="QWidget" name="page_menu">
+     <widget class="QPushButton" name="newGameButton">
+      <property name="geometry">
+       <rect>
+        <x>540</x>
+        <y>250</y>
+        <width>200</width>
+        <height>50</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string>background: #3a3a5c; color: white; font: 14px; border-radius: 5px;</string>
+      </property>
+      <property name="text">
+       <string>新游戏</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="loadGameButton">
+      <property name="geometry">
+       <rect>
+        <x>540</x>
+        <y>320</y>
+        <width>200</width>
+        <height>50</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string>background: #3a3a5c; color: white; font: 14px; border-radius: 5px;</string>
+      </property>
+      <property name="text">
+       <string>继续游戏</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="exitButton">
+      <property name="geometry">
+       <rect>
+        <x>540</x>
+        <y>390</y>
+        <width>200</width>
+        <height>50</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string>background: #3a3a5c; color: white; font: 14px; border-radius: 5px;</string>
+      </property>
+      <property name="text">
+       <string>退出</string>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="widget"/>
+    <widget class="QWidget" name="widget_2"/>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -77,8 +82,8 @@ font: 700 9pt &quot;Microsoft YaHei&quot;;</string>
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>800</width>
-     <height>17</height>
+     <width>1280</width>
+     <height>24</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu">
@@ -93,11 +98,6 @@ font: 700 9pt &quot;Microsoft YaHei&quot;;</string>
   <action name="actionSaveGame">
    <property name="text">
     <string>保存游戏</string>
-   </property>
-  </action>
-  <action name="actionload">
-   <property name="text">
-    <string>load</string>
    </property>
   </action>
  </widget>

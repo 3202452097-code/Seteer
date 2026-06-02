@@ -1,16 +1,12 @@
 #include "GameOverMenu.h"
-#include "game.h"
 #include <QVBoxLayout>
-
-GameOverMenu::GameOverMenu(Game* game, bool isVictory, QWidget* parent)
+#include <QPushButton>
+#include <QLabel>
+GameOverMenu::GameOverMenu(bool isVictory, QWidget* parent)
     : QWidget(parent)
-    , m_game(game)
 {
-    setWindowTitle(isVictory ? "胜利" : "失败");
     setFixedSize(300, 180);
-    setWindowFlags(Qt::Dialog | Qt::FramelessWindowHint);
-
-    // 设置背景
+    setWindowFlags(Qt::Widget);  // ★ 作为子控件嵌入，不作为独立 Dialog
     QString bgColor = isVictory ? "rgba(0, 100, 0, 220)" : "rgba(100, 0, 0, 220)";
     setStyleSheet(QString("QWidget { background-color: %1; border-radius: 10px; }"
                           "QPushButton { background-color: #4a4a4a; color: white; border: none; "
@@ -18,25 +14,17 @@ GameOverMenu::GameOverMenu(Game* game, bool isVictory, QWidget* parent)
                           "QPushButton:hover { background-color: #6a6a6a; }"
                           "QLabel { color: white; font-size: 20px; font-weight: bold; }")
                       .arg(bgColor));
-
     QVBoxLayout* layout = new QVBoxLayout(this);
     layout->setSpacing(20);
     layout->setContentsMargins(20, 20, 20, 20);
-
     QLabel* titleLabel = new QLabel(isVictory ? "胜利！" : "失败...", this);
     titleLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(titleLabel);
-
     QPushButton* returnButton = new QPushButton("返回主菜单", this);
     layout->addWidget(returnButton);
-
-    connect(returnButton, &QPushButton::clicked, this, &GameOverMenu::onReturnToMenu);
+    connect(returnButton, &QPushButton::clicked, this, &GameOverMenu::onReturnClicked);
 }
-
-void GameOverMenu::onReturnToMenu()
+void GameOverMenu::onReturnClicked()
 {
-    close();
-    if (m_game) {
-        m_game->returnToMainMenu();
-    }
+    emit returnToMenu();
 }

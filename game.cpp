@@ -1,12 +1,13 @@
 #include "game.h"
 #include "carditem.h"
-#include "SaveData.h"
-#include "GameOverMenu.h"
-#include "mainwindow.h"
+#include "blessingdata.h"
+// [临时注释] 存档系统暂不可用
+// #include "SaveData.h"
 #include <QMouseEvent>
 #include <QDebug>
-#include <QFile>
-#include <QJsonDocument>
+// [临时注释]
+// #include <QFile>
+// #include <QJsonDocument>
 #include <QPixmap>
 // ==================== 构造 ====================
 Game::Game(QWidget *parent)
@@ -15,25 +16,15 @@ Game::Game(QWidget *parent)
     m_enemy(40, std::make_unique<SimpleAI>())
 {
     m_scene = new QGraphicsScene(this);
-
     setScene(m_scene);
-
-    setRenderHint(QPainter::Antialiasing,true);
-    setRenderHint(QPainter::SmoothPixmapTransform,true);
+    setRenderHint(QPainter::Antialiasing, true);
+    setRenderHint(QPainter::SmoothPixmapTransform, true);
     setRenderHint(QPainter::TextAntialiasing, true);
-
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-
-    // 视口更新模式 - 关键设置！
     setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
-
-    // 缓存背景
     setCacheMode(QGraphicsView::CacheBackground);
-
-    // 优化标志
     setOptimizationFlags(QGraphicsView::DontAdjustForAntialiasing);
-
     // 结束回合按钮
     m_endTurnButton = m_scene->addRect(0, 0, 120, 40,
                                        QPen(Qt::white, 2),
@@ -54,38 +45,26 @@ Game::Game(QWidget *parent)
     m_stringSpaceText = m_scene->addText("");
     m_stringSpaceText->setDefaultTextColor(QColor(255, 220, 100));
     m_stringSpaceText->setFont(QFont("Sans", 12));
-    // 字符串空间变化时自动刷新 UI
     m_stringSpace.onChanged = [this]() { updateUI(); };
 }
-
-
-
 // ==================== 初始化 ====================
 void Game::initGame(int w, int h, const QString& title, const QIcon& icon) {
-    setFixedSize(w, h);
-    setWindowTitle(title);
-    if (!icon.isNull()) {
-        setWindowIcon(icon);
-    }
+    Q_UNUSED(title);
+    if (!icon.isNull()) setWindowIcon(icon);
     m_scene->setSceneRect(0, 0, w, h);
-
-    QPixmap bgPixmap(":/resources/cards/bg.jpg");  // 使用主界面同样的背景图
+    QPixmap bgPixmap(":/resources/cards/bg.jpg");
     if (!bgPixmap.isNull()) {
-        // 缩放背景图以适应窗口大小
         QPixmap scaledBg = bgPixmap.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
         m_scene->setBackgroundBrush(QBrush(scaledBg));
     } else {
-        // 如果图片加载失败，设置一个深色渐变背景作为备选
         QLinearGradient gradient(0, 0, 0, h);
         gradient.setColorAt(0, QColor(30, 30, 50));
         gradient.setColorAt(1, QColor(20, 20, 40));
         m_scene->setBackgroundBrush(QBrush(gradient));
     }
-
     initBattle();
-}
-void Game::run() {
-    this->show();
+    viewport()->update();
+    update();
 }
 // ==================== BattleContext 工厂 ====================
 BattleContext Game::buildContext() const {
@@ -96,6 +75,9 @@ BattleContext Game::buildContext() const {
     ctx.drawPile    = const_cast<QList<Card>*>(&m_drawPile);
     ctx.hand        = const_cast<QList<Card>*>(&m_hand);
     ctx.discardPile = const_cast<QList<Card>*>(&m_discardPile);
+    ctx.drawCards = [this](int count) {
+        const_cast<Game*>(this)->drawCards(count);
+    };
     return ctx;
 }
 // ==================== 战斗初始化 ====================
@@ -107,42 +89,52 @@ void Game::initBattle() {
     m_handItems.clear();
     m_selectedCard = nullptr;
     // 卡组
-    for (int i = 0; i < 5; i++) m_drawPile.append(Card{ "strike" });
-    for (int i = 0; i < 5; i++) m_drawPile.append(Card{ "defend" });
-    for (int i = 0; i < 2; i++) m_drawPile.append(Card{ "random_letter" });
-    for (int i = 0; i < 2; i++) m_drawPile.append(Card{ "random_digit" });
-    m_drawPile.append(Card{ "clear_burst" });
-    m_drawPile.append(Card{ "triple_letter" });
-    m_drawPile.append(Card{ "digit_diff_strength" });
-
+    if (!m_runDeck.isEmpty()) {
+        m_drawPile = m_runDeck;
+        m_runDeck.clear();
+    } else {
+        for (int i = 0; i < 5; i++) m_drawPile.append(Card{ "strike" });
+        for (int i = 0; i < 5; i++) m_drawPile.append(Card{ "defend" });
+        for (int i = 0; i < 2; i++) m_drawPile.append(Card{ "random_letter" });
+        for (int i = 0; i < 2; i++) m_drawPile.append(Card{ "random_digit" });
+        m_drawPile.append(Card{ "clear_burst" });
+        m_drawPile.append(Card{ "triple_letter" });
+        m_drawPile.append(Card{ "digit_diff_strength" });
+    }
     // 洗牌
-    BattleContext ctx = buildContext();
-    ctx.shuffleDiscardIntoDraw(); // 先把 drawPile 洗了
-    // 上面的调用等价于手动洗 drawPile，不过 drawPile 目前就是 10 张，discardPile 是空的
-    // 实际上这里直接洗 drawPile：
     std::random_device rd;
     std::mt19937 g(rd());
     std::shuffle(m_drawPile.begin(), m_drawPile.end(), g);
     // 重置实体
-    m_player.setHP(70);
+    m_player.setHP(m_startHP);
     m_player.setBlock(0);
-    m_player.setStrength(2);
+    m_player.setStrength(m_startStrength);
     m_player.restoreEnergy();
     m_enemy.setHP(40);
     m_enemy.setBlock(0);
     m_enemy.setStrength(0);
     m_enemy.setAI(std::make_unique<PatternAI>());
-    // 清空字符串空间
     m_stringSpace.clear();
     m_state = PlayerTurn;
-    m_enemy.decideIntent(ctx);   // ← 第一回合就决定意图
+    BattleContext ctx = buildContext();
+    m_enemy.decideIntent(ctx);
     startPlayerTurn();
     updateUI();
 }
 // ==================== 回合 ====================
 void Game::startPlayerTurn() {
     BattleContext ctx = buildContext();
-    m_player.onTurnStart(ctx);   // 回能 + 清格挡
+    m_player.onTurnStart(ctx);
+    ctx.attacker = &m_player;
+    // 执行祈福效果
+    for (const QString& id : m_runBlessings) {
+        const BlessingData* b = BlessingDatabase::instance().blessingById(id);
+        if (b) {
+            for (auto& effect : b->effects) {
+                effect.execute(ctx);
+            }
+        }
+    }
     drawCards(5);
     m_state = PlayerTurn;
     qInfo() << "--- 玩家回合开始 ---";
@@ -157,10 +149,13 @@ void Game::endPlayerTurn() {
 }
 // ==================== 抽牌 ====================
 void Game::drawCards(int count) {
-    BattleContext ctx = buildContext();
     for (int i = 0; i < count; i++) {
         if (m_drawPile.isEmpty()) {
-            ctx.shuffleDiscardIntoDraw();
+            while (!m_discardPile.isEmpty())
+                m_drawPile.append(m_discardPile.takeLast());
+            std::random_device rd;
+            std::mt19937 g(rd());
+            std::shuffle(m_drawPile.begin(), m_drawPile.end(), g);
             if (m_drawPile.isEmpty()) break;
         }
         Card c = m_drawPile.takeLast();
@@ -177,26 +172,21 @@ void Game::playCard(int handIndex) {
     Card card = m_hand[handIndex];
     const CardData* data = card.data();
     if (!data) return;
-    // 检查费用
     if (data->cost > m_player.energy()) {
         qInfo() << "能量不足！需要" << data->cost << "，当前" << m_player.energy();
         rearrangeHand();
         return;
     }
-    // 扣能量
     m_player.setEnergy(m_player.energy() - data->cost);
-    // ── 构建战场上下文 ──
     BattleContext ctx = buildContext();
     ctx.attacker = &m_player;
-    // ── 依次执行所有 Effect ──
     for (auto& effect : data->effects) {
         effect.execute(ctx);
+        if (m_enemy.isDead()) break;
     }
-    // 移除 UI
     CardItem* item = m_handItems.takeAt(handIndex);
     m_scene->removeItem(item);
     delete item;
-    // 手牌 → 弃牌堆
     m_hand.removeAt(handIndex);
     m_discardPile.append(card);
     m_selectedCard = nullptr;
@@ -205,17 +195,15 @@ void Game::playCard(int handIndex) {
     }
     rearrangeHand();
     updateUI();
-    if (m_enemy.isDead()) {
+    if (m_state != GameOver && m_enemy.isDead()) {
         m_state = GameOver;
         qInfo() << "战斗胜利！";
-        showGameOverMenu();
+        emit battleFinished(true);
     }
 }
 // ==================== 弃牌 ====================
 void Game::discardHand() {
-    for (Card c : m_hand) {
-        m_discardPile.append(c);
-    }
+    for (Card c : m_hand) m_discardPile.append(c);
     m_hand.clear();
     for (auto* item : m_handItems) {
         m_scene->removeItem(item);
@@ -229,17 +217,16 @@ void Game::enemyAction() {
     if (m_state == GameOver) return;
     qInfo() << "--- 敌人回合 ---";
     BattleContext ctx = buildContext();
-    // 执行敌人回合开始（清格挡 + 执行自身 buff）
     m_enemy.onTurnStart(ctx);
-    // 攻击
-    int dmg = m_enemy.intentDamage() + m_enemy.strength();  // ★ 力量加成
+    int dmg = (m_enemy.intentDamage() != 0)
+                  ? m_enemy.intentDamage() + m_enemy.strength()
+                  : 0;
     if (dmg > 0) {
         m_player.takeDamage(dmg);
         qInfo() << "敌人攻击，造成" << dmg << "点伤害";
     }
     checkGameOver();
     if (m_state != GameOver) {
-        // ★ 决定下一回合意图（让玩家在自己的回合看到）
         m_enemy.decideIntent(ctx);
         startPlayerTurn();
     }
@@ -248,51 +235,16 @@ void Game::checkGameOver() {
     if (m_player.isDead()) {
         m_state = GameOver;
         qInfo() << "玩家死亡...";
-        showGameOverMenu();
+        emit battleFinished(false);
     } else if (m_enemy.isDead()) {
         m_state = GameOver;
         qInfo() << "战斗胜利！";
-        showGameOverMenu();
+        emit battleFinished(true);
     }
 }
-
-// ==================== 新增：返回主菜单 ====================
-void Game::returnToMainMenu() {
-    // 关闭游戏结束菜单
-    if (m_gameOverMenu) {
-        m_gameOverMenu->close();
-        delete m_gameOverMenu;
-        m_gameOverMenu = nullptr;
-    }
-
-    // 关闭游戏窗口
-    close();
-
-    // 注意：game 窗口关闭后，由于设置了 WA_DeleteOnClose，
-    // 会自动删除，并触发 destroyed 信号，让 MainWindow 重新显示
-}
-
-// ==================== 新增：显示游戏结束菜单 ====================
-void Game::showGameOverMenu() {
-    bool isVictory = m_enemy.isDead();
-
-    if (m_gameOverMenu) {
-        delete m_gameOverMenu;
-        m_gameOverMenu = nullptr;
-    }
-
-    m_gameOverMenu = new GameOverMenu(this, isVictory, nullptr);
-
-    // 居中显示
-    QPoint center = mapToGlobal(geometry().center());
-    m_gameOverMenu->move(center.x() - m_gameOverMenu->width() / 2,
-                         center.y() - m_gameOverMenu->height() / 2);
-    m_gameOverMenu->show();
-}
-
-
 // ==================== CardItem 回调 ====================
 void Game::onCardClicked(CardItem* item) {
+    if (m_state == GameOver) return;
     if (m_selectedCard == item) {
         m_selectedCard = nullptr;
     } else {
@@ -304,6 +256,7 @@ void Game::onCardClicked(CardItem* item) {
     updateUI();
 }
 void Game::onCardDragged(CardItem* item, const QPointF& releasePos) {
+    if (m_state == GameOver) return;
     if (releasePos.y() < PLAY_ZONE_Y) {
         playCard(item->handIndex());
     } else {
@@ -328,41 +281,28 @@ void Game::rearrangeHand() {
 }
 // ==================== UI 更新 ====================
 void Game::updateUI() {
-    // 玩家信息
     QString playerText = QString("玩家 HP: %1/%2 | 格挡: %3 | 力量: %4 | 能量: %5/%6")
-                             .arg(m_player.hp())
-                             .arg(m_player.maxHp())
-                             .arg(m_player.block())
-                             .arg(m_player.strength())          // ★
-                             .arg(m_player.energy())
-                             .arg(m_player.maxEnergy());
+                             .arg(m_player.hp()).arg(m_player.maxHp())
+                             .arg(m_player.block()).arg(m_player.strength())
+                             .arg(m_player.energy()).arg(m_player.maxEnergy());
     m_playerInfoText->setPlainText(playerText);
     m_playerInfoText->setPos(20, 20);
-    // 敌人信息
     QString enemyText = QString("敌人 HP: %1/%2 | 格挡: %3 | 力量: %4 | 意图: %5")
-                            .arg(m_enemy.hp())
-                            .arg(m_enemy.maxHp())
-                            .arg(m_enemy.block())
-                            .arg(m_enemy.strength())              // ★
+                            .arg(m_enemy.hp()).arg(m_enemy.maxHp())
+                            .arg(m_enemy.block()).arg(m_enemy.strength())
                             .arg(m_enemy.intentDescription());
     m_enemyInfoText->setPlainText(enemyText);
     m_enemyInfoText->setPos(20, 50);
-    // 牌堆信息
     QString pileText = QString("抽牌堆: %1 | 弃牌堆: %2 | 手牌: %3")
-                           .arg(m_drawPile.size())
-                           .arg(m_discardPile.size())
-                           .arg(m_hand.size());
+                           .arg(m_drawPile.size()).arg(m_discardPile.size()).arg(m_hand.size());
     m_pileInfoText->setPlainText(pileText);
     m_pileInfoText->setPos(width() - 250, 20);
-    // 字符串空间
     QString ssText = QString("字符串空间: \"%1\" (长度 %2)")
-                         .arg(m_stringSpace.content())
-                         .arg(m_stringSpace.length());
+                         .arg(m_stringSpace.content()).arg(m_stringSpace.length());
     m_stringSpaceText->setPlainText(ssText);
     m_stringSpaceText->setPos(20, 80);
-    // 结束回合按钮
-    m_endTurnButton->setPos(width() - 160, height() - 60);
-    m_endTurnLabel->setPos(width() - 150, height() - 55);
+    m_endTurnButton->setPos(width() - 160, height() - 120);
+    m_endTurnLabel->setPos(width() - 150, height() - 115);
     if (m_state == GameOver) {
         m_endTurnLabel->setPlainText(m_player.isDead() ? "失败" : "胜利");
         m_endTurnButton->setBrush(QColor(60, 60, 60));
@@ -370,6 +310,7 @@ void Game::updateUI() {
 }
 // ==================== 鼠标点击 ====================
 void Game::mousePressEvent(QMouseEvent* event) {
+    if (m_state == GameOver) return;
     QPointF scenePos = mapToScene(event->pos());
     if (m_endTurnButton->contains(m_endTurnButton->mapFromScene(scenePos))
         && m_state == PlayerTurn) {
@@ -386,69 +327,55 @@ void Game::mousePressEvent(QMouseEvent* event) {
     }
     QGraphicsView::mousePressEvent(event);
 }
-
-
-// ==================== 保存/加载 ====================
+// ==================== 数据接口 ====================
+void Game::setRunDeck(const QList<Card>& deck)       { m_runDeck = deck; }
+QList<Card> Game::runDeck() const {
+    QList<Card> all;
+    all.append(m_drawPile);
+    all.append(m_hand);
+    all.append(m_discardPile);
+    return all;
+}
+void Game::setRunBlessings(const QList<QString>& ids) { m_runBlessings = ids; }
+void Game::setPlayerStartHP(int hp)                   { m_startHP = hp; }
+void Game::setPlayerStartStrength(int str)            { m_startStrength = str; }
+// ==================== [临时注释] 存档 ====================
+/*
 void Game::saveGame()
 {
     SaveData data;
-
     data.playerHP = m_player.hp();
-
     data.playerBlock = m_player.block();
-
     data.playerStrength = m_player.strength();
-
     data.enemyHP = m_enemy.hp();
-
     data.stringSpace = m_stringSpace.content();
-
     QFile file("save.json");
-
     if (file.open(QIODevice::WriteOnly))
     {
         QJsonDocument doc(data.toJson());
-
         file.write(doc.toJson());
-
         file.close();
-
         qInfo() << "游戏已保存";
     }
 }
-
 void Game::loadGame()
 {
     QFile file("save.json");
-
-    if (!file.open(QIODevice::ReadOnly))
-    {
+    if (!file.open(QIODevice::ReadOnly)) {
         qInfo() << "没有找到存档";
-
         return;
     }
-
     QByteArray bytes = file.readAll();
-
     file.close();
-
     QJsonDocument doc = QJsonDocument::fromJson(bytes);
-
     SaveData data;
-
     data.fromJson(doc.object());
-
     m_player.setHP(data.playerHP);
-
     m_player.setBlock(data.playerBlock);
-
     m_player.setStrength(data.playerStrength);
-
     m_enemy.setHP(data.enemyHP);
-
     m_stringSpace.setText(data.stringSpace);
-
     updateUI();
-
     qInfo() << "读档成功";
 }
+*/

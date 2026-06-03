@@ -5,20 +5,14 @@
 #include <QList>
 #include <map>
 #include <memory>
+#include "entity.h"
 
 // 和 ConfigurableAI::Step 共享结构
-struct EnemyAIStep {
-    int damage = 0;
-    int selfBlock = 0;
-    int strengthGain = 0;
-    QString description;
-};
-
 struct EnemyData {
     QString id;
     QString name;
     int maxHp = 40;
-    QList<EnemyAIStep> aiPattern;   // 循环执行的 AI 步骤
+    QList<ConfigurableAI::Step> aiPattern;   // 循环执行的 AI 步骤
     QString spritePath;             // 动画预留
 };
 

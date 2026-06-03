@@ -28,8 +28,6 @@ public:
     void setEnemyId(const QString& id);
     void setInitialDeck(const QList<Card>& deck);
     const Player& player() const { return m_player; }
-    QString m_enemyId;
-    QList<Card> m_initialDeck;
     // [临时注释] 存档系统暂不可用
     // void saveGame();
     // void loadGame();
@@ -53,6 +51,8 @@ private:
     QList<Card> m_hand;
     QList<Card> m_discardPile;
     QList<CardItem*> m_handItems;
+    QString m_enemyId;
+    QList<Card> m_initialDeck;
     CardItem* m_selectedCard = nullptr;
     enum State { PlayerTurn, EnemyTurn, GameOver };
     State m_state = PlayerTurn;

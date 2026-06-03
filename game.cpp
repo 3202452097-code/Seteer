@@ -120,11 +120,8 @@ void Game::initBattle() {
     // ── ★ 创建敌人：从 EnemyDatabase ──
     const EnemyData* ed = EnemyDatabase::instance().enemyById(m_enemyId);
     if (ed) {
-        QList<ConfigurableAI::Step> steps;
-        for (const auto& s : ed->aiPattern) {
-            steps.append({s.damage, s.selfBlock, s.strengthGain, s.description});
-        }
-        m_enemy = Enemy(ed->maxHp, std::make_unique<ConfigurableAI>(steps));
+        m_enemy = Enemy(ed->maxHp,
+                        std::make_unique<ConfigurableAI>(ed->aiPattern));
     } else {
         // 兜底：未知敌人 → SimpleAI
         m_enemy = Enemy(40, std::make_unique<SimpleAI>());
@@ -295,7 +292,7 @@ void Game::rearrangeHand() {
     int n = m_handItems.size();
     if (n == 0) return;
     int totalWidth = (n - 1) * CARD_OVERLAP + CARD_WIDTH;
-    int startX = (width() - totalWidth) / 2;
+    int startX = qMax(10, (width() - totalWidth) / 2);
     int y = height() - HAND_Y_OFFSET;
     for (int i = 0; i < n; i++) {
         CardItem* item = m_handItems[i];

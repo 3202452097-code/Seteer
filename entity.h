@@ -1,6 +1,7 @@
 #ifndef ENTITY_H
 #define ENTITY_H
 #include <QString>
+#include <QList>
 #include <memory>
 class BattleContext;
 // ==================== 实体基类 ====================
@@ -77,4 +78,19 @@ protected:
     EnemyAI::Decision m_decision;
     std::unique_ptr<EnemyAI> m_ai;
 };
+class ConfigurableAI : public EnemyAI {
+public:
+    struct Step {
+        int damage = 0;
+        int selfBlock = 0;
+        int strengthGain = 0;
+        QString description;
+    };
+    explicit ConfigurableAI(const QList<Step>& steps);
+    Decision decide(const BattleContext& ctx) override;
+private:
+    QList<Step> m_steps;
+    int m_index = 0;
+};
+
 #endif // ENTITY_H

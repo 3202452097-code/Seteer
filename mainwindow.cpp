@@ -150,8 +150,9 @@ void MainWindow::onRestOption(int healAmount)
     ui->stackedWidget->setCurrentWidget(m_eventPage);
 }
 
-void MainWindow::onBattleFloor()
+void MainWindow::onBattleFloor(const QString& enemyId, int layer)
 {
+    Q_UNUSED(layer);
     if (m_game) {
         ui->stackedWidget->removeWidget(m_game);
         m_game->deleteLater();
@@ -171,6 +172,7 @@ void MainWindow::onBattleFloor()
         m_game->setRunBlessings(m_runManager->playerBlessings());
         m_game->setPlayerStartHP(m_runManager->playerHP());
         m_game->setPlayerStartStrength(0);
+        m_game->setEnemyId(enemyId);
     }
 
     ui->stackedWidget->addWidget(m_game);
@@ -194,20 +196,21 @@ void MainWindow::onBattleFinished(bool victory)
     GameOverMenu* menu = new GameOverMenu(victory, this);
     menu->setGeometry((width() - 300) / 2, (height() - 180) / 2, 300, 180);
     menu->show();
-
-    connect(menu, &GameOverMenu::returnToMenu, this, [this, menu, victory]() {
+    bool* returning = new bool(false);   // ★ 堆上分配，lambda 捕获
+    connect(menu, &GameOverMenu::returnToMenu, this, [this, menu, victory, returning]() {
+        if (*returning) return;          // ★ 防止重复触发
+        *returning = true;
         menu->deleteLater();
-
         if (m_game && victory) {
             m_runManager->updatePlayerData(
                 m_game->runDeck(),
                 m_game->player().hp(),
                 0);
         }
-
         if (m_runManager) {
             m_runManager->onBattleFinished(victory);
         }
+        delete returning;
     });
 }
 

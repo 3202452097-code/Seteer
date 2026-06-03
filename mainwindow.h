@@ -35,7 +35,7 @@ private slots:
     void onBlessingOptions(const QList<QString>& ids);
     void onCardPickOptions(const QList<QString>& ids);
     void onRestOption(int healAmount);
-    void onBattleFloor();
+    void onBattleFloor(const QString& enemyId, int layer);
     // 响应 Game
     void onBattleFinished(bool victory);
 private:

@@ -1,52 +1,117 @@
 #include "runmanager.h"
-#include "game.h"
 #include "blessingdata.h"
 #include "carddata.h"
+#include "EnemyData.h"
 #include <QRandomGenerator>
 #include <algorithm>
+#include <QDebug>
 
 RunManager::RunManager(QObject* parent) : QObject(parent) {}
 
+// ═══════════════════════════════════
+// 默认牌组
+// ═══════════════════════════════════
+QList<Card> RunManager::defaultDeck() {
+    QList<Card> deck;
+    for (int i = 0; i < 5; i++) deck.append(Card{"strike"});
+    for (int i = 0; i < 5; i++) deck.append(Card{"defend"});
+    for (int i = 0; i < 2; i++) deck.append(Card{"random_letter"});
+    for (int i = 0; i < 2; i++) deck.append(Card{"random_digit"});
+    deck.append(Card{"clear_burst"});
+    deck.append(Card{"triple_letter"});
+    deck.append(Card{"digit_diff_strength"});
+    return deck;
+}
+
+// ═══════════════════════════════════
+// Debug 接口
+// ═══════════════════════════════════
+void RunManager::setDebugEnemy(const QString& enemyId) {
+    m_debugEnemy = enemyId;
+}
+
+void RunManager::setDebugInitialDeck(const QList<Card>& deck) {
+    m_debugDeck = deck;
+}
+
+// ═══════════════════════════════════
+// 启动
+// ═══════════════════════════════════
 void RunManager::start() {
     m_playerData = PlayerRunData{};
     m_floor = 0;
 
-    m_floorPlan.clear();
-    m_floorPlan.append(Blessing);
-    for (int i = 0; i < 3; i++) {
-        m_floorPlan.append(Battle);
-        m_floorPlan.append(CardPick);
-        m_floorPlan.append(Rest);
+    // 牌组：debug 预设 > RunManager 默认
+    if (!m_debugDeck.isEmpty()) {
+        m_playerData.deck = m_debugDeck;
+    } else {
+        m_playerData.deck = defaultDeck();
     }
-    m_floorPlan.append(End);
+
+    // ═══════════════════════════════════
+    // 楼层计划：一祈福 → 四层（每层一战一选牌一休息）→ 结束
+    // ═══════════════════════════════════
+    m_floorPlan.clear();
+    m_floorPlan.append({FloorStep::Blessing, "", 0});
+
+    for (int layer = 1; layer <= 4; layer++) {
+        m_floorPlan.append({FloorStep::Battle, "", layer});
+        if (layer < 4) {
+            m_floorPlan.append({FloorStep::CardPick, "", 0});
+            m_floorPlan.append({FloorStep::Rest, "", 0});
+        }
+    }
+    m_floorPlan.append({FloorStep::End, "", 0});
 
     nextFloor();
 }
 
+// ═══════════════════════════════════
+// 楼层推进
+// ═══════════════════════════════════
 void RunManager::nextFloor() {
-    if (m_floor >= m_floorPlan.size() || m_floorPlan[m_floor] == End) {
+    if (m_floor >= m_floorPlan.size() ||
+        m_floorPlan[m_floor].type == FloorStep::End) {
         emit runFinished();
         return;
     }
     executeFloor(m_floorPlan[m_floor]);
 }
 
-void RunManager::executeFloor(FloorType type) {
-    switch (type) {
-    case Blessing: {
+// ═══════════════════════════════════
+// 敌人选择
+// ═══════════════════════════════════
+QString RunManager::resolveEnemyId(const FloorStep& step) const {
+    if (!m_debugEnemy.isEmpty()) {
+        if (EnemyDatabase::instance().enemyById(m_debugEnemy)) {
+            return m_debugEnemy;                    // 有效 ID
+        }
+        qWarning() << "Debug enemy not found:" << m_debugEnemy << ", fallback to random";
+    }
+    return EnemyDatabase::instance().randomEnemyForLayer(step.layer);
+}
+
+// ═══════════════════════════════════
+// 执行楼层
+// ═══════════════════════════════════
+void RunManager::executeFloor(const FloorStep& step) {
+    switch (step.type) {
+    case FloorStep::Blessing: {
         QList<QString> ids = generateBlessingOptions();
         emit blessingOptionsAvailable(ids);
         break;
     }
-    case Battle:
-        emit battleStarting();  // MainWindow 创建 Game
+    case FloorStep::Battle: {
+        QString enemyId = resolveEnemyId(step);
+        emit battleStarting(enemyId, step.layer);
         break;
-    case CardPick: {
+    }
+    case FloorStep::CardPick: {
         QList<QString> ids = generateCardPickOptions();
         emit cardPickOptionsAvailable(ids);
         break;
     }
-    case Rest: {
+    case FloorStep::Rest: {
         int heal = static_cast<int>(m_playerData.maxHp * 0.3);
         emit restOptionAvailable(heal);
         break;
@@ -55,8 +120,9 @@ void RunManager::executeFloor(FloorType type) {
     }
 }
 
-
-// ==================== 选项生成（只生成数据，不弹窗） ====================
+// ═══════════════════════════════════
+// 选项生成
+// ═══════════════════════════════════
 QList<QString> RunManager::generateBlessingOptions() {
     QList<QString> all = BlessingDatabase::instance().allIds();
     std::random_device rd;
@@ -74,7 +140,9 @@ QList<QString> RunManager::generateCardPickOptions() {
     return pool.mid(0, qMin(3, pool.size()));
 }
 
-// ==================== MainWindow 回调 ====================
+// ═══════════════════════════════════
+// 回调
+// ═══════════════════════════════════
 void RunManager::onBlessingChosen(const QString& id) {
     m_playerData.blessings.append(id);
     m_floor++;
@@ -94,7 +162,6 @@ void RunManager::onRestChosen() {
     nextFloor();
 }
 
-
 void RunManager::updatePlayerData(const QList<Card>& deck, int hp, int strength) {
     m_playerData.deck = deck;
     m_playerData.hp = hp;
@@ -102,16 +169,10 @@ void RunManager::updatePlayerData(const QList<Card>& deck, int hp, int strength)
 }
 
 void RunManager::onBattleFinished(bool victory) {
-    m_currentGame = nullptr;
-
     if (!victory) {
         emit runFinished();
         return;
     }
-
-    // [注意] 需要从 Game 获取最新数据——MainWindow 在 startBattleWithData 中传入，
-    // Game 在 initBattle 中消耗 m_runDeck。战斗结束后数据需要通过 runDeck() 取回。
-    // 目前 MainWindow 持有 Game 引用，在 onBattleFinished 中调 runDeck() 获取。
     m_floor++;
     nextFloor();
 }

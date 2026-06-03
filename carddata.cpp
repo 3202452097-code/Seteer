@@ -16,7 +16,7 @@ void CardDatabase::registerDefaults() {
         c->name      = "打击";
         c->cost      = 1;
         c->desc      = "造成 6 点伤害。若字符串空间末尾为数字，消耗之并造成等量伤害。";
-        c->imagePath = ":/cards/strike.png";
+        c->imagePath = "";
         // 效果1：无条件 6 伤害
         c->effects.push_back(
             Effect(std::make_unique<DamageAction>(EffectValue::fixed(6)))
@@ -35,7 +35,7 @@ void CardDatabase::registerDefaults() {
         c->name      = "防御";
         c->cost      = 1;
         c->desc      = "获得 5 点格挡。若字符串空间末尾为字母，消耗之并再获得 5 点格挡。";
-        c->imagePath = ":/cards/defend.png";
+        c->imagePath = "";
         // 效果1：无条件 5 格挡
         c->effects.push_back(
             Effect(std::make_unique<BlockAction>(EffectValue::fixed(5)))

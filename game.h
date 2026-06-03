@@ -25,7 +25,11 @@ public:
     void setRunBlessings(const QList<QString>& blessingIds);
     void setPlayerStartHP(int hp);
     void setPlayerStartStrength(int str);
+    void setEnemyId(const QString& id);
+    void setInitialDeck(const QList<Card>& deck);
     const Player& player() const { return m_player; }
+    QString m_enemyId;
+    QList<Card> m_initialDeck;
     // [临时注释] 存档系统暂不可用
     // void saveGame();
     // void loadGame();
@@ -37,6 +41,7 @@ private:
     QGraphicsScene* m_scene;
     QGraphicsRectItem* m_endTurnButton;
     QGraphicsTextItem* m_endTurnLabel;
+    int m_turnCount = 0;
     Player m_player;
     Enemy m_enemy;
     StringSpace m_stringSpace;
@@ -66,6 +71,7 @@ private:
     void discardHand();
     void rearrangeHand();
     void updateUI();
+    void setEndTurnButtonVisible(bool visible);
     static constexpr int CARD_WIDTH = 120;
     static constexpr int CARD_OVERLAP = 60;
     static constexpr int HAND_Y_OFFSET = 200;

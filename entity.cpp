@@ -63,3 +63,12 @@ PatternAI::Decision PatternAI::decide(const BattleContext&) {
     }
     return d;
 }
+
+// ==================== ConfigurableAI ====================
+ConfigurableAI::ConfigurableAI(const QList<Step>& steps) : m_steps(steps) {}
+ConfigurableAI::Decision ConfigurableAI::decide(const BattleContext&) {
+    if (m_steps.isEmpty()) return {0, 0, 0, ""};
+    const Step& s = m_steps[m_index % m_steps.size()];
+    m_index++;
+    return {s.damage, s.selfBlock, s.strengthGain, s.description};
+}

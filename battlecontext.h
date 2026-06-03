@@ -7,6 +7,7 @@
 #include "StringSpace.h"
 #include "Card.h"
 struct BattleContext {
+    int turnCount = 0;
     // 实体
     Player* player = nullptr;
     Enemy* enemy = nullptr;

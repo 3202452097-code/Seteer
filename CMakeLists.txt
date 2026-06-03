@@ -50,6 +50,7 @@ add_executable(Seteer
   runmanager.cpp
   mainwindow.ui
   eventpage.h eventpage.cpp
+  enemydata.h enemydata.cpp
 )
 target_link_libraries(Seteer PRIVATE Qt${QT_VERSION_MAJOR}::Core)
 target_link_libraries(Seteer PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)

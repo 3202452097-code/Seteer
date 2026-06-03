@@ -1,14 +1,17 @@
 #include "game.h"
 #include "carditem.h"
 #include "blessingdata.h"
+#include "enemydata.h"
 // [临时注释] 存档系统暂不可用
 // #include "SaveData.h"
 #include <QMouseEvent>
 #include <QDebug>
+#include <QTimer>
 // [临时注释]
 // #include <QFile>
 // #include <QJsonDocument>
 #include <QPixmap>
+
 // ==================== 构造 ====================
 Game::Game(QWidget *parent)
     : QGraphicsView{parent},
@@ -26,10 +29,10 @@ Game::Game(QWidget *parent)
     setCacheMode(QGraphicsView::CacheBackground);
     setOptimizationFlags(QGraphicsView::DontAdjustForAntialiasing);
     // 结束回合按钮
-    m_endTurnButton = m_scene->addRect(0, 0, 120, 40,
+    m_endTurnButton = m_scene->addRect(0, 0, 150, 40,
                                        QPen(Qt::white, 2),
                                        QBrush(QColor(80, 30, 30)));
-    m_endTurnLabel = m_scene->addText("结束回合");
+    m_endTurnLabel = m_scene->addText("结束第1回合");
     m_endTurnLabel->setDefaultTextColor(Qt::white);
     m_endTurnLabel->setFont(QFont("Sans", 14));
     // 信息文字
@@ -47,6 +50,9 @@ Game::Game(QWidget *parent)
     m_stringSpaceText->setFont(QFont("Sans", 12));
     m_stringSpace.onChanged = [this]() { updateUI(); };
 }
+
+
+
 // ==================== 初始化 ====================
 void Game::initGame(int w, int h, const QString& title, const QIcon& icon) {
     Q_UNUSED(title);
@@ -69,6 +75,7 @@ void Game::initGame(int w, int h, const QString& title, const QIcon& icon) {
 // ==================== BattleContext 工厂 ====================
 BattleContext Game::buildContext() const {
     BattleContext ctx;
+    ctx.turnCount = m_turnCount;
     ctx.player      = const_cast<Player*>(&m_player);
     ctx.enemy       = const_cast<Enemy*>(&m_enemy);
     ctx.stringSpace = const_cast<StringSpace*>(&m_stringSpace);
@@ -88,43 +95,59 @@ void Game::initBattle() {
     for (auto* item : m_handItems) m_scene->removeItem(item);
     m_handItems.clear();
     m_selectedCard = nullptr;
-    // 卡组
-    if (!m_runDeck.isEmpty()) {
+
+    // ── 卡组：外部传入 > m_runDeck > 空 ──
+    if (!m_initialDeck.isEmpty()) {
+        m_drawPile = m_initialDeck;
+        m_initialDeck.clear();
+    } else if (!m_runDeck.isEmpty()) {
         m_drawPile = m_runDeck;
         m_runDeck.clear();
-    } else {
-        for (int i = 0; i < 5; i++) m_drawPile.append(Card{ "strike" });
-        for (int i = 0; i < 5; i++) m_drawPile.append(Card{ "defend" });
-        for (int i = 0; i < 2; i++) m_drawPile.append(Card{ "random_letter" });
-        for (int i = 0; i < 2; i++) m_drawPile.append(Card{ "random_digit" });
-        m_drawPile.append(Card{ "clear_burst" });
-        m_drawPile.append(Card{ "triple_letter" });
-        m_drawPile.append(Card{ "digit_diff_strength" });
     }
+    // 如果 m_drawPile 仍为空（应该不会），让 drawCards 自己去处理
+
     // 洗牌
     std::random_device rd;
     std::mt19937 g(rd());
     std::shuffle(m_drawPile.begin(), m_drawPile.end(), g);
-    // 重置实体
+
+    // ── 重置实体 ──
     m_player.setHP(m_startHP);
     m_player.setBlock(0);
     m_player.setStrength(m_startStrength);
     m_player.restoreEnergy();
-    m_enemy.setHP(40);
+
+    // ── ★ 创建敌人：从 EnemyDatabase ──
+    const EnemyData* ed = EnemyDatabase::instance().enemyById(m_enemyId);
+    if (ed) {
+        QList<ConfigurableAI::Step> steps;
+        for (const auto& s : ed->aiPattern) {
+            steps.append({s.damage, s.selfBlock, s.strengthGain, s.description});
+        }
+        m_enemy = Enemy(ed->maxHp, std::make_unique<ConfigurableAI>(steps));
+    } else {
+        // 兜底：未知敌人 → SimpleAI
+        m_enemy = Enemy(40, std::make_unique<SimpleAI>());
+    }
     m_enemy.setBlock(0);
     m_enemy.setStrength(0);
-    m_enemy.setAI(std::make_unique<PatternAI>());
+
     m_stringSpace.clear();
+
     m_state = PlayerTurn;
     BattleContext ctx = buildContext();
     m_enemy.decideIntent(ctx);
     startPlayerTurn();
     updateUI();
 }
+
+
 // ==================== 回合 ====================
 void Game::startPlayerTurn() {
     BattleContext ctx = buildContext();
     m_player.onTurnStart(ctx);
+    m_turnCount++;
+    ctx.turnCount = m_turnCount;
     ctx.attacker = &m_player;
     // 执行祈福效果
     for (const QString& id : m_runBlessings) {
@@ -185,8 +208,10 @@ void Game::playCard(int handIndex) {
         if (m_enemy.isDead()) break;
     }
     CardItem* item = m_handItems.takeAt(handIndex);
-    m_scene->removeItem(item);
-    delete item;
+    QTimer::singleShot(0, this, [this, item]() {
+        m_scene->removeItem(item);
+        delete item;
+    });
     m_hand.removeAt(handIndex);
     m_discardPile.append(card);
     m_selectedCard = nullptr;
@@ -301,12 +326,18 @@ void Game::updateUI() {
                          .arg(m_stringSpace.content()).arg(m_stringSpace.length());
     m_stringSpaceText->setPlainText(ssText);
     m_stringSpaceText->setPos(20, 80);
-    m_endTurnButton->setPos(width() - 160, height() - 120);
-    m_endTurnLabel->setPos(width() - 150, height() - 115);
+    m_endTurnButton->setPos(width() - 180, height() - 120);
+    m_endTurnLabel->setPos(width() - 170, height() - 115);
+    m_endTurnLabel->setPlainText(QString("结束第 %1 回合").arg(m_turnCount));
     if (m_state == GameOver) {
         m_endTurnLabel->setPlainText(m_player.isDead() ? "失败" : "胜利");
         m_endTurnButton->setBrush(QColor(60, 60, 60));
     }
+}
+//隐藏结束按钮（仍未调用）
+void Game::setEndTurnButtonVisible(bool visible) {
+    m_endTurnButton->setVisible(visible);
+    m_endTurnLabel->setVisible(visible);
 }
 // ==================== 鼠标点击 ====================
 void Game::mousePressEvent(QMouseEvent* event) {
@@ -339,6 +370,8 @@ QList<Card> Game::runDeck() const {
 void Game::setRunBlessings(const QList<QString>& ids) { m_runBlessings = ids; }
 void Game::setPlayerStartHP(int hp)                   { m_startHP = hp; }
 void Game::setPlayerStartStrength(int str)            { m_startStrength = str; }
+void Game::setEnemyId(const QString& id)        { m_enemyId = id; }
+void Game::setInitialDeck(const QList<Card>& d) { m_initialDeck = d; }
 // ==================== [临时注释] 存档 ====================
 /*
 void Game::saveGame()

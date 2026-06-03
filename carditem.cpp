@@ -67,8 +67,6 @@ void CardItem::mouseReleaseEvent(QGraphicsSceneMouseEvent* event) {
         setPos(m_originalPos);
         m_game->onCardClicked(this);
     }
-    m_isDragging = false;
-    event->accept();
 }
 void CardItem::hoverEnterEvent(QGraphicsSceneHoverEvent* event) {
     if (!m_isDragging) {

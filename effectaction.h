@@ -2,6 +2,8 @@
 #define EFFECTACTION_H
 #include <QString>
 #include "EffectValue.h"
+#include "Entity.h"
+#include <QDebug>
 class BattleContext;
 // 效果行为基类
 class EffectAction {
@@ -110,5 +112,18 @@ class ConsumeLastTwoDigitsStrengthAction : public EffectAction {
 public:
     void execute(BattleContext& ctx) override;
     QString description() const override;
+};
+class ApplyStatusAction : public EffectAction {
+public:
+    enum Target { Enemy, Self };
+    ApplyStatusAction(StatusType type, int amount, int duration, Target target)
+        : m_type(type), m_amount(amount), m_duration(duration), m_target(target) {}
+    void execute(BattleContext& ctx) override;
+    QString description() const override;
+private:
+    StatusType m_type;
+    int m_amount;
+    int m_duration;
+    Target m_target;
 };
 #endif // EFFECTACTION_H

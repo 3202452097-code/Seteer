@@ -4,7 +4,12 @@
 // ── Damage ──
 void DamageAction::execute(BattleContext& ctx) {
     int dmg = m_amount.evaluate(ctx);
-    if (ctx.attacker) dmg += ctx.attacker->strength();
+    if (ctx.attacker){
+        dmg += ctx.attacker->strength();
+        if (ctx.attacker->hasStatus(StatusType::Weak)) {
+            dmg = static_cast<int>(dmg * 0.75);
+        }
+    }
     ctx.enemy->takeDamage(dmg);
 }
 QString DamageAction::description() const {
@@ -99,9 +104,10 @@ void ClearStringDamageAction::execute(BattleContext& ctx) {
     for (int i = 0; i < n; i++) {
         int dmg = perHit;
         if (ctx.attacker) dmg += ctx.attacker->strength();
-        if (dmg > 0) {
-            ctx.enemy->takeDamage(dmg);
+        if (ctx.attacker->hasStatus(StatusType::Weak)) {
+            dmg = static_cast<int>(dmg * 0.75);
         }
+        ctx.enemy->takeDamage(dmg);
     }
 }
 QString ClearStringDamageAction::description() const {
@@ -141,4 +147,22 @@ void ConsumeLastTwoDigitsStrengthAction::execute(BattleContext& ctx) {
 }
 QString ConsumeLastTwoDigitsStrengthAction::description() const {
     return "若最后两位均为数字，消耗之并获得差值力量";
+}
+// ==================== ★ ApplyStatus ====================
+void ApplyStatusAction::execute(BattleContext& ctx) {
+    Entity* target = (m_target == Enemy) ? static_cast<Entity*>(ctx.enemy)
+                                         : ctx.attacker;
+    if (target) {
+        target->addStatus(m_type, m_amount, m_duration);
+    }
+}
+QString ApplyStatusAction::description() const {
+    QString targetStr = (m_target == Enemy) ? "敌人" : "自身";
+    QString typeStr;
+    switch (m_type) {
+    case StatusType::Vulnerable: typeStr = "易伤"; break;
+    case StatusType::Weak:       typeStr = "虚弱"; break;
+    default:                     typeStr = "?";     break;
+    }
+    return QString("给%1施加 %2 回合%3").arg(targetStr).arg(m_duration).arg(typeStr);
 }

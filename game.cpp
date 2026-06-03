@@ -156,6 +156,9 @@ void Game::startPlayerTurn() {
         }
     }
     drawCards(5);
+    m_player.tickStatuses();
+    m_enemy.tickStatuses();
+    m_state = PlayerTurn;
     m_state = PlayerTurn;
     qInfo() << "--- 玩家回合开始 ---";
     updateUI();
@@ -330,6 +333,26 @@ void Game::updateUI() {
         m_endTurnLabel->setPlainText(m_player.isDead() ? "失败" : "胜利");
         m_endTurnButton->setBrush(QColor(60, 60, 60));
     }
+    // 状态栏
+    auto fmtStatus = [](const QList<StatusInstance>& list) -> QString {
+        QStringList parts;
+        for (const auto& s : list) {
+            QString name;
+            switch (s.type) {
+            case StatusType::Vulnerable: name = "易伤"; break;
+            case StatusType::Weak:       name = "虚弱"; break;
+            default:                     name = "?";    break;
+            }
+            parts.append(QString("%1(%2回合)").arg(name).arg(s.duration));
+        }
+        return parts.isEmpty() ? "无" : parts.join(", ");
+    };
+    QString playerStatus = QString("玩家状态: %1").arg(fmtStatus(m_player.statuses()));
+    QString enemyStatus  = QString("敌人状态: %1").arg(fmtStatus(m_enemy.statuses()));
+    // 新建两个 text item（如果还没创建的话），或者复用
+    // 简单做法：写在 m_playerInfoText 下方（y=20 + 偏移）
+    Q_UNUSED(playerStatus);
+    Q_UNUSED(enemyStatus);
 }
 //隐藏结束按钮（仍未调用）
 void Game::setEndTurnButtonVisible(bool visible) {

@@ -20,6 +20,8 @@ QList<Card> RunManager::defaultDeck() {
     deck.append(Card{"clear_burst"});
     deck.append(Card{"triple_letter"});
     deck.append(Card{"digit_diff_strength"});
+    deck.append(Card{"test_vulnerable"});
+    deck.append(Card{"test_weak"});
     return deck;
 }
 

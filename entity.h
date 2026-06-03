@@ -4,6 +4,21 @@
 #include <QList>
 #include <memory>
 class BattleContext;
+
+// ═══════════════════════════════════
+// 状态系统
+// ═══════════════════════════════════
+enum class StatusType {
+    Vulnerable,   // 受到伤害 ×1.5
+    Weak,         // 造成伤害 ×0.75
+    Frail,        // 获得格挡 ×0.75（后续）
+    StringLock,   // 字符串空间锁定（后续）
+};
+struct StatusInstance {
+    StatusType type;
+    int amount = 1;      // 强度/层数
+    int duration = 0;    // 剩余回合
+};
 // ==================== 实体基类 ====================
 class Entity {
 public:
@@ -21,11 +36,18 @@ public:
     void takeDamage(int dmg);       // 先扣格挡再扣血
     virtual void onTurnStart(BattleContext& ctx) {}
     virtual void onTurnEnd(BattleContext& ctx) {}
+    // 状态
+    void addStatus(StatusType type, int amount, int duration);
+    int  getStatusAmount(StatusType type) const;
+    bool hasStatus(StatusType type) const { return getStatusAmount(type) > 0; }
+    void tickStatuses();
+    const QList<StatusInstance>& statuses() const { return m_statuses; }
 protected:
     int m_hp;
     int m_maxHp;
     int m_block = 0;
     int m_strength = 0;
+    QList<StatusInstance> m_statuses;
 };
 // ==================== 玩家 ====================
 class Player : public Entity {

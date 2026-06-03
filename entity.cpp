@@ -6,6 +6,9 @@ void Entity::setHP(int v)   { m_hp = qMax(0, qMin(v, m_maxHp)); }
 void Entity::setBlock(int v) { m_block = qMax(0, v); }
 void Entity::takeDamage(int dmg) {
     if (dmg <= 0 || isDead()) return;
+    if (hasStatus(StatusType::Vulnerable)) {
+        dmg = static_cast<int>(dmg * 1.5);
+    }
     if (m_block > 0) {
         int blocked = qMin(dmg, m_block);
         m_block -= blocked;
@@ -71,4 +74,30 @@ ConfigurableAI::Decision ConfigurableAI::decide(const BattleContext&) {
     const Step& s = m_steps[m_index % m_steps.size()];
     m_index++;
     return {s.damage, s.selfBlock, s.strengthGain, s.description};
+}
+
+// ==================== Status ====================
+void Entity::addStatus(StatusType type, int amount, int duration) {
+    for (auto& s : m_statuses) {
+        if (s.type == type) {
+            s.amount    = amount;                    // ★ 覆盖
+            s.duration += duration;                  // ★ 叠加
+            return;
+        }
+    }
+    m_statuses.append({type, amount, duration});
+}
+int Entity::getStatusAmount(StatusType type) const {
+    for (const auto& s : m_statuses) {
+        if (s.type == type) return s.amount;
+    }
+    return 0;
+}
+void Entity::tickStatuses() {
+    for (int i = m_statuses.size() - 1; i >= 0; i--) {
+        m_statuses[i].duration--;
+        if (m_statuses[i].duration <= 0) {
+            m_statuses.removeAt(i);
+        }
+    }
 }

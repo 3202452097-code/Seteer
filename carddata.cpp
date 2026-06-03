@@ -112,6 +112,28 @@ void CardDatabase::registerDefaults() {
             );
         m_cards[c->id] = std::move(c);
     }
+    // ── 测试易伤 ──
+    {
+        auto c = std::make_unique<CardData>();
+        c->id   = "test_vulnerable";
+        c->name = "测试易伤";
+        c->cost = 0;
+        c->desc = "给敌人施加 2 回合易伤";
+        c->effects.push_back(Effect(std::make_unique<ApplyStatusAction>(
+            StatusType::Vulnerable, 1, 2, ApplyStatusAction::Enemy)));
+        m_cards[c->id] = std::move(c);
+    }
+    // ── 测试虚弱 ──
+    {
+        auto c = std::make_unique<CardData>();
+        c->id   = "test_weak";
+        c->name = "测试虚弱";
+        c->cost = 0;
+        c->desc = "给敌人施加 2 回合虚弱";
+        c->effects.push_back(Effect(std::make_unique<ApplyStatusAction>(
+            StatusType::Weak, 1, 2, ApplyStatusAction::Enemy)));
+        m_cards[c->id] = std::move(c);
+    }
 }
 const CardData* CardDatabase::cardById(const QString& id) const {
     auto it = m_cards.find(id);

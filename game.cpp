@@ -15,8 +15,7 @@
 // ==================== 构造 ====================
 Game::Game(QWidget *parent)
     : QGraphicsView{parent},
-    m_player(70, 3),
-    m_enemy(40, std::make_unique<SimpleAI>())
+    m_player(70, 3)
 {
     m_scene = new QGraphicsScene(this);
     setScene(m_scene);
@@ -77,7 +76,7 @@ BattleContext Game::buildContext() const {
     BattleContext ctx;
     ctx.turnCount = m_turnCount;
     ctx.player      = const_cast<Player*>(&m_player);
-    ctx.enemy       = const_cast<Enemy*>(&m_enemy);
+    ctx.enemy       = m_enemy.get();
     ctx.stringSpace = const_cast<StringSpace*>(&m_stringSpace);
     ctx.drawPile    = const_cast<QList<Card>*>(&m_drawPile);
     ctx.hand        = const_cast<QList<Card>*>(&m_hand);
@@ -118,22 +117,21 @@ void Game::initBattle() {
     m_player.restoreEnergy();
 
     // ── ★ 创建敌人：从 EnemyDatabase ──
-    const EnemyData* ed = EnemyDatabase::instance().enemyById(m_enemyId);
-    if (ed) {
-        m_enemy = Enemy(ed->maxHp,
-                        std::make_unique<ConfigurableAI>(ed->aiPattern));
+    auto enemyPtr = EnemyDatabase::instance().createEnemy(m_enemyId);
+    if (enemyPtr) {
+        m_enemy = std::move(enemyPtr);
     } else {
-        // 兜底：未知敌人 → SimpleAI
-        m_enemy = Enemy(40, std::make_unique<SimpleAI>());
+        m_enemy = std::make_unique<Enemy>(40, std::make_unique<DoubaoAI>());
+        m_enemy->setName("未知敌人");
     }
-    m_enemy.setBlock(0);
-    m_enemy.setStrength(0);
+    m_enemy->setBlock(0);
+    m_enemy->setStrength(0);
 
     m_stringSpace.clear();
 
     m_state = PlayerTurn;
     BattleContext ctx = buildContext();
-    m_enemy.decideIntent(ctx);
+    m_enemy->decideIntent(ctx);
     startPlayerTurn();
     updateUI();
 }
@@ -157,8 +155,7 @@ void Game::startPlayerTurn() {
     }
     drawCards(5);
     m_player.tickStatuses();
-    m_enemy.tickStatuses();
-    m_state = PlayerTurn;
+    m_enemy->tickStatuses();
     m_state = PlayerTurn;
     qInfo() << "--- 玩家回合开始 ---";
     updateUI();
@@ -203,9 +200,10 @@ void Game::playCard(int handIndex) {
     m_player.setEnergy(m_player.energy() - data->cost);
     BattleContext ctx = buildContext();
     ctx.attacker = &m_player;
+    ctx.defender = m_enemy.get();
     for (auto& effect : data->effects) {
         effect.execute(ctx);
-        if (m_enemy.isDead()) break;
+        if (m_enemy->isDead()) break;
     }
     CardItem* item = m_handItems.takeAt(handIndex);
     QTimer::singleShot(0, this, [this, item]() {
@@ -220,7 +218,7 @@ void Game::playCard(int handIndex) {
     }
     rearrangeHand();
     updateUI();
-    if (m_state != GameOver && m_enemy.isDead()) {
+    if (m_state != GameOver && m_enemy->isDead()) {
         m_state = GameOver;
         qInfo() << "战斗胜利！";
         emit battleFinished(true);
@@ -242,17 +240,21 @@ void Game::enemyAction() {
     if (m_state == GameOver) return;
     qInfo() << "--- 敌人回合 ---";
     BattleContext ctx = buildContext();
-    m_enemy.onTurnStart(ctx);
-    int dmg = (m_enemy.intentDamage() != 0)
-                  ? m_enemy.intentDamage() + m_enemy.strength()
-                  : 0;
-    if (dmg > 0) {
-        m_player.takeDamage(dmg);
-        qInfo() << "敌人攻击，造成" << dmg << "点伤害";
+    m_enemy->onTurnStart(ctx);
+    // ★ 特殊效果
+    m_enemy->executeSpecialEffect(ctx);
+    // ★ Effect 管线
+    ctx.attacker = m_enemy.get();
+    ctx.defender = &m_player;
+    std::vector<Effect> effects = m_enemy->takePendingEffects();
+    for (auto& effect : effects) {
+        effect.execute(ctx);
+        if (m_player.isDead()) break;
     }
+    m_enemy->onTurnEnd(ctx);
     checkGameOver();
     if (m_state != GameOver) {
-        m_enemy.decideIntent(ctx);
+        m_enemy->decideIntent(ctx);
         startPlayerTurn();
     }
 }
@@ -261,7 +263,7 @@ void Game::checkGameOver() {
         m_state = GameOver;
         qInfo() << "玩家死亡...";
         emit battleFinished(false);
-    } else if (m_enemy.isDead()) {
+    } else if (m_enemy->isDead()) {
         m_state = GameOver;
         qInfo() << "战斗胜利！";
         emit battleFinished(true);
@@ -313,9 +315,9 @@ void Game::updateUI() {
     m_playerInfoText->setPlainText(playerText);
     m_playerInfoText->setPos(20, 20);
     QString enemyText = QString("敌人 HP: %1/%2 | 格挡: %3 | 力量: %4 | 意图: %5")
-                            .arg(m_enemy.hp()).arg(m_enemy.maxHp())
-                            .arg(m_enemy.block()).arg(m_enemy.strength())
-                            .arg(m_enemy.intentDescription());
+                            .arg(m_enemy->hp()).arg(m_enemy->maxHp())
+                            .arg(m_enemy->block()).arg(m_enemy->strength())
+                            .arg(m_enemy->intentDescription());
     m_enemyInfoText->setPlainText(enemyText);
     m_enemyInfoText->setPos(20, 50);
     QString pileText = QString("抽牌堆: %1 | 弃牌堆: %2 | 手牌: %3")
@@ -348,7 +350,7 @@ void Game::updateUI() {
         return parts.isEmpty() ? "无" : parts.join(", ");
     };
     QString playerStatus = QString("玩家状态: %1").arg(fmtStatus(m_player.statuses()));
-    QString enemyStatus  = QString("敌人状态: %1").arg(fmtStatus(m_enemy.statuses()));
+    QString enemyStatus  = QString("敌人状态: %1").arg(fmtStatus(m_enemy->statuses()));
     // 新建两个 text item（如果还没创建的话），或者复用
     // 简单做法：写在 m_playerInfoText 下方（y=20 + 偏移）
     Q_UNUSED(playerStatus);
@@ -400,7 +402,7 @@ void Game::saveGame()
     data.playerHP = m_player.hp();
     data.playerBlock = m_player.block();
     data.playerStrength = m_player.strength();
-    data.enemyHP = m_enemy.hp();
+    data.enemyHP = m_enemy->hp();
     data.stringSpace = m_stringSpace.content();
     QFile file("save.json");
     if (file.open(QIODevice::WriteOnly))
@@ -426,7 +428,7 @@ void Game::loadGame()
     m_player.setHP(data.playerHP);
     m_player.setBlock(data.playerBlock);
     m_player.setStrength(data.playerStrength);
-    m_enemy.setHP(data.enemyHP);
+    m_enemy->setHP(data.enemyHP);
     m_stringSpace.setText(data.stringSpace);
     updateUI();
     qInfo() << "读档成功";

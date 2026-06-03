@@ -85,7 +85,7 @@ void RunManager::nextFloor() {
 // ═══════════════════════════════════
 QString RunManager::resolveEnemyId(const FloorStep& step) const {
     if (!m_debugEnemy.isEmpty()) {
-        if (EnemyDatabase::instance().enemyById(m_debugEnemy)) {
+        if (EnemyDatabase::instance().hasEnemy(m_debugEnemy)) {
             return m_debugEnemy;                    // 有效 ID
         }
         qWarning() << "Debug enemy not found:" << m_debugEnemy << ", fallback to random";

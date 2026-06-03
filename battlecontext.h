@@ -19,6 +19,7 @@ struct BattleContext {
     QList<Card>* discardPile = nullptr;
     // 当前攻击者
     Entity* attacker = nullptr;
+    Entity* defender = nullptr;
     // 弃牌堆洗入抽牌堆（DrawAction 会调用）
     // void shuffleDiscardIntoDraw() {
     //     while (!discardPile->isEmpty())

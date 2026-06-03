@@ -2,7 +2,7 @@
 #define EFFECTACTION_H
 #include <QString>
 #include "EffectValue.h"
-#include "Entity.h"
+#include "Status.h"
 #include <QDebug>
 class BattleContext;
 // 效果行为基类

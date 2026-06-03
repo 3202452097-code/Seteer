@@ -10,7 +10,7 @@ void DamageAction::execute(BattleContext& ctx) {
             dmg = static_cast<int>(dmg * 0.75);
         }
     }
-    ctx.enemy->takeDamage(dmg);
+    ctx.defender->takeDamage(dmg);
 }
 QString DamageAction::description() const {
     return QString("造成 %1 点伤害").arg(m_amount.base);
@@ -18,7 +18,7 @@ QString DamageAction::description() const {
 // ── Block ──
 void BlockAction::execute(BattleContext& ctx) {
     int val = m_amount.evaluate(ctx);
-    ctx.player->setBlock(ctx.player->block() + val);
+    ctx.attacker->setBlock(ctx.player->block() + val);
 }
 QString BlockAction::description() const {
     return QString("获得 %1 点格挡").arg(m_amount.base);
@@ -75,7 +75,7 @@ void ConsumeLastDigitDamageAction::execute(BattleContext& ctx) {
         int dmg = c.digitValue();
         if (ctx.attacker) dmg += ctx.attacker->strength();
         if (dmg > 0) {
-            ctx.enemy->takeDamage(dmg);
+            ctx.defender->takeDamage(dmg);
         }
     }
     ctx.stringSpace->removeLast(1);   // 读取后移除
@@ -124,7 +124,7 @@ QString GainStrengthAction::description() const {
 }
 // ==================== ★ Heal ====================
 void HealAction::execute(BattleContext& ctx) {
-    ctx.player->setHP(ctx.player->hp() + m_amount);
+    ctx.attacker->setHP(ctx.player->hp() + m_amount);
 }
 QString HealAction::description() const {
     return QString("回复 %1 点生命").arg(m_amount);
@@ -150,10 +150,8 @@ QString ConsumeLastTwoDigitsStrengthAction::description() const {
 }
 // ==================== ★ ApplyStatus ====================
 void ApplyStatusAction::execute(BattleContext& ctx) {
-    Entity* target = (m_target == Enemy) ? static_cast<Entity*>(ctx.enemy)
-                                         : ctx.attacker;
-    if (target) {
-        target->addStatus(m_type, m_amount, m_duration);
+    if (ctx.defender) {
+        ctx.defender->addStatus(m_type, m_amount, m_duration);
     }
 }
 QString ApplyStatusAction::description() const {

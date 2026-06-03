@@ -1,47 +1,43 @@
 #ifndef ENTITY_H
 #define ENTITY_H
+
 #include <QString>
 #include <QList>
 #include <memory>
+#include "Effect.h"
+#include "Status.h"
+
 class BattleContext;
 
-// ═══════════════════════════════════
-// 状态系统
-// ═══════════════════════════════════
-enum class StatusType {
-    Vulnerable,   // 受到伤害 ×1.5
-    Weak,         // 造成伤害 ×0.75
-    Frail,        // 获得格挡 ×0.75（后续）
-    StringLock,   // 字符串空间锁定（后续）
-};
-struct StatusInstance {
-    StatusType type;
-    int amount = 1;      // 强度/层数
-    int duration = 0;    // 剩余回合
-};
-// ==================== 实体基类 ====================
+// ==================== Entity 基类 ====================
 class Entity {
 public:
     Entity(int maxHp);
     virtual ~Entity() = default;
+
     int hp() const { return m_hp; }
     int maxHp() const { return m_maxHp; }
     int block() const { return m_block; }
-    int strength() const {return m_strength; }
+    int strength() const { return m_strength; }
     bool isDead() const { return m_hp <= 0; }
+
     void setHP(int v);
     void setBlock(int v);
     void setStrength(int v) { m_strength = v; }
     void addStrength(int v) { m_strength += v; }
-    void takeDamage(int dmg);       // 先扣格挡再扣血
+    void takeDamage(int dmg);
+
     virtual void onTurnStart(BattleContext& ctx) {}
     virtual void onTurnEnd(BattleContext& ctx) {}
+    virtual QString getName() const { return "敌人"; }
+
     // 状态
     void addStatus(StatusType type, int amount, int duration);
     int  getStatusAmount(StatusType type) const;
     bool hasStatus(StatusType type) const { return getStatusAmount(type) > 0; }
     void tickStatuses();
     const QList<StatusInstance>& statuses() const { return m_statuses; }
+
 protected:
     int m_hp;
     int m_maxHp;
@@ -49,7 +45,8 @@ protected:
     int m_strength = 0;
     QList<StatusInstance> m_statuses;
 };
-// ==================== 玩家 ====================
+
+// ==================== Player ====================
 class Player : public Entity {
 public:
     Player(int maxHp = 70, int maxEnergy = 3);
@@ -62,57 +59,136 @@ protected:
     int m_energy;
     int m_maxEnergy;
 };
-// ==================== 敌人 AI 基类 ====================
+
+// ==================== EnemyAI 基类 ====================
 class EnemyAI {
 public:
     virtual ~EnemyAI() = default;
-    struct Decision {
-        int damage = 0;
-        int selfBlock = 0;
-        int strengthGain = 0;
-        QString description;
-    };
-    virtual Decision decide(const BattleContext& ctx) = 0;
+
+    // ★ 返回本回合效果列表
+    virtual std::vector<Effect> decide(const BattleContext& ctx) = 0;
+
+    // 可选回调
+    virtual void onTurnStart(BattleContext& ctx) {}
+    virtual void onTurnEnd(BattleContext& ctx) {}
+    virtual void executeSpecialEffect(BattleContext& ctx, int code) {}
+
+    // 意图描述（decide 后读取）
+    QString intentDescription() const { return m_intentDesc; }
+
+    // 特殊效果码（decide 可能设置）
+    int specialEffectCode() const { return m_specialCode; }
+
+protected:
+    QString m_intentDesc;
+    int m_specialCode = 0;
 };
-// ── 简单 AI ──
-class SimpleAI : public EnemyAI {
-public:
-    Decision decide(const BattleContext& ctx) override;
+
+// ── 小怪 AI ──
+class DoubaoAI : public EnemyAI {
+public: std::vector<Effect> decide(const BattleContext& ctx) override;
+private: int m_turn = 0;
 };
-class PatternAI : public EnemyAI {
-public:
-    Decision decide(const BattleContext& ctx) override;
-private:
-    int m_turn = 0;
+
+class HajimiAI : public EnemyAI {
+public: std::vector<Effect> decide(const BattleContext& ctx) override;
+private: int m_turn = 0;
 };
-// ==================== 敌人 ====================
+
+class FreshmanAI : public EnemyAI {
+public: std::vector<Effect> decide(const BattleContext& ctx) override;
+private: int m_turn = 0;
+};
+
+class PythonAI : public EnemyAI {
+public: std::vector<Effect> decide(const BattleContext& ctx) override;
+private: int m_turn = 0;
+};
+
+// ── 精英 AI ──
+class AdMathAI : public EnemyAI {
+public: std::vector<Effect> decide(const BattleContext& ctx) override;
+    void onTurnStart(BattleContext& ctx) override;
+private: int m_turn = 0;
+};
+
+class LinearAlgebraAI : public EnemyAI {
+public: std::vector<Effect> decide(const BattleContext& ctx) override;
+    void executeSpecialEffect(BattleContext& ctx, int code) override;
+private: int m_turn = 0;
+};
+
+// ── Boss AI ──
+class DragonAI : public EnemyAI {
+public: std::vector<Effect> decide(const BattleContext& ctx) override;
+    void onTurnStart(BattleContext& ctx) override;
+    void onTurnEnd(BattleContext& ctx) override;
+private: int m_turn = 0; int m_phase = 1;
+};
+
+class GeniusAI : public EnemyAI {
+public: std::vector<Effect> decide(const BattleContext& ctx) override;
+    void onTurnStart(BattleContext& ctx) override;
+private: int m_turn = 0; bool m_enraged = false;
+};
+
+// ==================== Enemy ====================
 class Enemy : public Entity {
 public:
-    Enemy(int maxHp = 40, std::unique_ptr<EnemyAI> ai = nullptr);
-    int intentDamage() const        { return m_decision.damage; }
-    int intentSelfBlock() const     { return m_decision.selfBlock; }
-    int intentStrengthGain() const  { return m_decision.strengthGain; }
-    QString intentDescription() const { return m_decision.description; }
+    Enemy(int maxHp, std::unique_ptr<EnemyAI> ai = nullptr);
+    virtual ~Enemy() = default;
+
+    // 意图
+    std::vector<Effect> takePendingEffects();       // 取出并清空
+    QString intentDescription() const { return m_intentDescription; }
+    int intentSpecialEffect() const { return m_specialCode; }
+
     void setAI(std::unique_ptr<EnemyAI> ai);
-    void decideIntent(BattleContext& ctx);       // 决定本回合意图
+    void decideIntent(BattleContext& ctx);
+    void executeSpecialEffect(BattleContext& ctx);
     void onTurnStart(BattleContext& ctx) override;
+    void onTurnEnd(BattleContext& ctx) override;
+
+    EnemyAI* getAI() const { return m_ai.get(); }
+    QString getName() const override { return m_name; }
+    void setName(const QString& name) { m_name = name; }
+
 protected:
-    EnemyAI::Decision m_decision;
+    std::vector<Effect> m_pendingEffects;
     std::unique_ptr<EnemyAI> m_ai;
+    QString m_name = "敌人";
+    QString m_intentDescription;
+    int m_specialCode = 0;
 };
-class ConfigurableAI : public EnemyAI {
-public:
-    struct Step {
-        int damage = 0;
-        int selfBlock = 0;
-        int strengthGain = 0;
-        QString description;
-    };
-    explicit ConfigurableAI(const QList<Step>& steps);
-    Decision decide(const BattleContext& ctx) override;
-private:
-    QList<Step> m_steps;
-    int m_index = 0;
+
+// ── 小怪派生类 ──
+class Doubao : public Enemy {
+public: Doubao(int hp = 35);
+};
+class Hajimi : public Enemy {
+public: Hajimi(int hp = 30);
+};
+class Freshman : public Enemy {
+public: Freshman(int hp = 40);
+};
+class Python : public Enemy {
+public: Python(int hp = 25);
+};
+
+// ── 精英派生类 ──
+class AdMath : public Enemy {
+public: AdMath(int hp = 70);
+};
+class LinearAlgebra : public Enemy {
+public: LinearAlgebra(int hp = 60);
+};
+
+// ── Boss 派生类 ──
+class Dragon : public Enemy {
+public: Dragon(int hp = 140);
+};
+class Genius : public Enemy {
+public: Genius(int hp = 120);
 };
 
 #endif // ENTITY_H

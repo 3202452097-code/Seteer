@@ -5,11 +5,14 @@
 #include <QGraphicsRectItem>
 #include <QGraphicsTextItem>
 #include <QList>
+#include <memory>
 #include "Card.h"
 #include "Entity.h"
 #include "StringSpace.h"
 #include "BattleContext.h"
+
 class CardItem;
+
 class Game : public QGraphicsView
 {
     Q_OBJECT
@@ -19,7 +22,7 @@ public:
     void onCardClicked(CardItem* item);
     void onCardDragged(CardItem* item, const QPointF& releasePos);
     QGraphicsScene* gameScene() const { return m_scene; }
-    // ★ 数据接口（RunManager 调用）
+
     void setRunDeck(const QList<Card>& deck);
     QList<Card> runDeck() const;
     void setRunBlessings(const QList<QString>& blessingIds);
@@ -28,20 +31,20 @@ public:
     void setEnemyId(const QString& id);
     void setInitialDeck(const QList<Card>& deck);
     const Player& player() const { return m_player; }
-    // [临时注释] 存档系统暂不可用
-    // void saveGame();
-    // void loadGame();
+
 signals:
     void battleFinished(bool victory);
+
 protected:
     void mousePressEvent(QMouseEvent* event) override;
+
 private:
     QGraphicsScene* m_scene;
     QGraphicsRectItem* m_endTurnButton;
     QGraphicsTextItem* m_endTurnLabel;
     int m_turnCount = 0;
     Player m_player;
-    Enemy m_enemy;
+    std::unique_ptr<Enemy> m_enemy;           // ★
     StringSpace m_stringSpace;
     QList<Card> m_runDeck;
     QList<QString> m_runBlessings;
@@ -60,6 +63,7 @@ private:
     QGraphicsTextItem* m_enemyInfoText;
     QGraphicsTextItem* m_pileInfoText;
     QGraphicsTextItem* m_stringSpaceText;
+
     BattleContext buildContext() const;
     void initBattle();
     void startPlayerTurn();
@@ -72,10 +76,12 @@ private:
     void rearrangeHand();
     void updateUI();
     void setEndTurnButtonVisible(bool visible);
+
     static constexpr int CARD_WIDTH = 120;
     static constexpr int CARD_OVERLAP = 60;
     static constexpr int HAND_Y_OFFSET = 200;
     static constexpr int PLAY_ZONE_Y = 200;
+
     friend class CardItem;
 };
 #endif // GAME_H

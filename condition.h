@@ -16,4 +16,19 @@ class LastCharIsAlphaCondition : public Condition {
 public:
     bool evaluate(const BattleContext& ctx) const override;
 };
+class PlayerBlockZeroCondition : public Condition {
+public:
+    bool evaluate(const BattleContext& ctx) const override;
+};
+class SelfHpNotFullCondition : public Condition {
+public:
+    bool evaluate(const BattleContext& ctx) const override;
+};
+class StringLengthLeCondition : public Condition {
+public:
+    explicit StringLengthLeCondition(int maxLength) : m_maxLength(maxLength) {}
+    bool evaluate(const BattleContext& ctx) const override;
+private:
+    int m_maxLength;
+};
 #endif // CONDITION_H

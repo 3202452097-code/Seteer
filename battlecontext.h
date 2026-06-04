@@ -1,5 +1,6 @@
 #ifndef BATTLECONTEXT_H
 #define BATTLECONTEXT_H
+
 #include <QList>
 #include <algorithm>
 #include <random>
@@ -20,14 +21,6 @@ struct BattleContext {
     // 当前攻击者
     Entity* attacker = nullptr;
     Entity* defender = nullptr;
-    // 弃牌堆洗入抽牌堆（DrawAction 会调用）
-    // void shuffleDiscardIntoDraw() {
-    //     while (!discardPile->isEmpty())
-    //         drawPile->append(discardPile->takeLast());
-    //     std::random_device rd;
-    //     std::mt19937 g(rd());
-    //     std::shuffle(drawPile->begin(), drawPile->end(), g);
-    // }
 
     std::function<void(int)> drawCards;
 };

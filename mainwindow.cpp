@@ -53,7 +53,7 @@ void MainWindow::startGame(bool loadSave)
             m_runManager, &RunManager::onCardChosen);
     connect(this, &MainWindow::restSelected,
             m_runManager, &RunManager::onRestChosen);
-
+    m_runManager->setDebugEnemy("genius");
     m_runManager->start();
 }
 

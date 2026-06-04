@@ -18,7 +18,7 @@ QString DamageAction::description() const {
 // ── Block ──
 void BlockAction::execute(BattleContext& ctx) {
     int val = m_amount.evaluate(ctx);
-    ctx.attacker->setBlock(ctx.player->block() + val);
+    ctx.attacker->setBlock(ctx.attacker->block() + val);
 }
 QString BlockAction::description() const {
     return QString("获得 %1 点格挡").arg(m_amount.base);
@@ -124,7 +124,7 @@ QString GainStrengthAction::description() const {
 }
 // ==================== ★ Heal ====================
 void HealAction::execute(BattleContext& ctx) {
-    ctx.attacker->setHP(ctx.player->hp() + m_amount);
+    ctx.attacker->setHP(ctx.attacker->hp() + m_amount);
 }
 QString HealAction::description() const {
     return QString("回复 %1 点生命").arg(m_amount);
@@ -163,4 +163,34 @@ QString ApplyStatusAction::description() const {
     default:                     typeStr = "?";     break;
     }
     return QString("给%1施加 %2 回合%3").arg(targetStr).arg(m_duration).arg(typeStr);
+}
+// ==================== ★ AddAbility ====================
+void AddAbilityAction::execute(BattleContext& ctx) {
+    Entity* target = (m_target == Self) ? ctx.attacker : ctx.defender;
+    if (target) {
+        target->addAbility(m_abilityId, m_duration);
+    }
+}
+QString AddAbilityAction::description() const {
+    const AbilityData* data = AbilityDatabase::instance().abilityById(m_abilityId);
+    QString name = data ? data->name : m_abilityId;
+    QString dur = (m_duration == 0) ? "永久" : QString::number(m_duration) + "回合";
+    return QString("获得能力 [%1] %2").arg(dur).arg(name);
+}
+void GainEnergyAction::execute(BattleContext& ctx) {
+    if (ctx.attacker == ctx.player) {
+        ctx.player->setEnergy(ctx.player->energy() + m_amount);
+    } // 暂时只处理玩家，敌人无能量
+}
+QString GainEnergyAction::description() const {
+    return QString("回复 %1 点能量").arg(m_amount);
+}
+void SetMaxEnergyAction::execute(BattleContext& ctx) {
+    if (ctx.attacker == ctx.player) {
+        ctx.player->setMaxEnergy(m_newMax);
+        ctx.player->setEnergy(m_newMax);   // 同时回满
+    }
+}
+QString SetMaxEnergyAction::description() const {
+    return QString("将最大能量提升至 %1").arg(m_newMax);
 }

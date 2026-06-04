@@ -4,6 +4,7 @@ void StringSpace::setText(const QString& text) {
     if (m_content != truncated) {
         m_content = truncated;
         if (onChanged) onChanged();
+        if (onAppended) onAppended(text);
     }
 }
 void StringSpace::append(const QString& text) {
@@ -13,6 +14,7 @@ void StringSpace::append(const QString& text) {
             m_content = m_content.right(20);
         }
         if (onChanged) onChanged();
+        if (onAppended) onAppended(text);
     }
 }
 void StringSpace::clear() {

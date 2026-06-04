@@ -22,6 +22,9 @@ void Entity::takeDamage(int dmg) {
         dmg -= blocked;
     }
     m_hp = qMax(0, m_hp - dmg);
+    if (onDamaged && dmg > 0) {
+        onDamaged(dmg);
+    }
 }
 
 // ==================== Status ====================
@@ -47,6 +50,58 @@ void Entity::tickStatuses() {
     for (int i = m_statuses.size() - 1; i >= 0; i--) {
         m_statuses[i].duration--;
         if (m_statuses[i].duration <= 0) m_statuses.removeAt(i);
+    }
+}
+
+void Entity::addAbility(const QString& id, int duration) {
+    const AbilityData* data = AbilityDatabase::instance().abilityById(id);
+    if (!data) return;
+    // 如果已经存在，则刷新持续时间（默认新持续时间覆盖？）
+    for (auto& inst : m_abilities) {
+        if (inst.abilityId == id) {
+            // 如果新的持续时间更长或永久，覆盖；否则保留较长的
+            if (duration == 0 || (inst.remainingTurns > 0 && duration > inst.remainingTurns)) {
+                inst.remainingTurns = duration;
+            } else if (inst.remainingTurns == 0) {
+                // 已永久，不做改变
+            } else {
+                inst.remainingTurns = qMax(inst.remainingTurns, duration);
+            }
+            return;
+        }
+    }
+    m_abilities.append({id, duration});
+}
+bool Entity::hasAbility(const QString& id) const {
+    for (const auto& inst : m_abilities) {
+        if (inst.abilityId == id) return true;
+    }
+    return false;
+}
+void Entity::removeAbility(const QString& id) {
+    for (int i = m_abilities.size() - 1; i >= 0; i--) {
+        if (m_abilities[i].abilityId == id) {
+            m_abilities.removeAt(i);
+        }
+    }
+}
+void Entity::tickAbilities() {
+    for (int i = m_abilities.size() - 1; i >= 0; i--) {
+        if (m_abilities[i].remainingTurns > 0) {
+            m_abilities[i].remainingTurns--;
+            if (m_abilities[i].remainingTurns <= 0) {
+                m_abilities.removeAt(i);
+            }
+        }
+    }
+}
+void Entity::triggerAbilities(Trigger trigger, const QVariantMap& eventData, BattleContext& ctx) {
+    for (int i = m_abilities.size() - 1; i >= 0; i--) {
+        const AbilityData* data = AbilityDatabase::instance().abilityById(m_abilities[i].abilityId);
+        if (data && data->trigger == trigger) {
+            // 执行前临时设置 attacker/defender (已由调用者设置好)
+            data->action->execute(ctx);
+        }
     }
 }
 
@@ -155,10 +210,6 @@ std::vector<Effect> AdMathAI::decide(const BattleContext&) {
     return effects;
 }
 
-void AdMathAI::onTurnStart(BattleContext& ctx) {
-    if (ctx.enemy) { ctx.enemy->addStrength(1); qDebug() << "[高等数学] 力量+1"; }
-}
-
 std::vector<Effect> LinearAlgebraAI::decide(const BattleContext&) {
     m_turn++;
     std::vector<Effect> effects;
@@ -217,16 +268,6 @@ std::vector<Effect> DragonAI::decide(const BattleContext& ctx) {
     return effects;
 }
 
-void DragonAI::onTurnStart(BattleContext& ctx) {
-    if (ctx.enemy) ctx.enemy->setBlock(ctx.enemy->block() + 2);
-}
-
-void DragonAI::onTurnEnd(BattleContext& ctx) {
-    if (ctx.enemy && ctx.enemy->hp() < ctx.enemy->maxHp()) {
-        ctx.enemy->setHP(ctx.enemy->hp() + 2);
-        qDebug() << "[龙] 龙就是龙！回复2生命";
-    }
-}
 
 std::vector<Effect> GeniusAI::decide(const BattleContext& ctx) {
     m_turn++;
@@ -254,13 +295,6 @@ std::vector<Effect> GeniusAI::decide(const BattleContext& ctx) {
         }
     }
     return effects;
-}
-
-void GeniusAI::onTurnStart(BattleContext& ctx) {
-    if (ctx.player && ctx.player->block() == 0) {
-        ctx.player->takeDamage(5);
-        qDebug() << "[程设大佬] 你这里没加；有破绽！造成5点伤害";
-    }
 }
 
 // ==================== Enemy ====================
@@ -303,7 +337,27 @@ Doubao::Doubao(int hp)          : Enemy(hp, std::make_unique<DoubaoAI>())       
 Hajimi::Hajimi(int hp)          : Enemy(hp, std::make_unique<HajimiAI>())      { setName("一只哈基米"); }
 Freshman::Freshman(int hp)      : Enemy(hp, std::make_unique<FreshmanAI>())    { setName("一般路过的大一新生"); }
 Python::Python(int hp)          : Enemy(hp, std::make_unique<PythonAI>())      { setName("一只叫Python的蟒蛇"); }
-AdMath::AdMath(int hp)          : Enemy(hp, std::make_unique<AdMathAI>())      { setName("高等数学"); }
+
+AdMath::AdMath(int hp)
+    : Enemy(hp, std::make_unique<AdMathAI>())
+{
+    setName("高等数学");
+    addAbility("admath_strength", 0);
+}
+
 LinearAlgebra::LinearAlgebra(int hp) : Enemy(hp, std::make_unique<LinearAlgebraAI>()) { setName("线性代数"); }
-Dragon::Dragon(int hp)          : Enemy(hp, std::make_unique<DragonAI>())      { setName("理教巨龙"); }
-Genius::Genius(int hp)          : Enemy(hp, std::make_unique<GeniusAI>())      { setName("程设大佬"); }
+
+Dragon::Dragon(int hp)
+    : Enemy(hp, std::make_unique<DragonAI>())
+{
+    setName("理教巨龙");
+    addAbility("dragon_scales", 0);
+    addAbility("dragon_regen", 0);
+}
+
+Genius::Genius(int hp)
+    : Enemy(hp, std::make_unique<GeniusAI>())
+{
+    setName("程设大佬");
+    addAbility("genius_break", 0);
+}

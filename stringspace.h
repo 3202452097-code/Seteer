@@ -18,6 +18,7 @@ public:
     bool isLastAlpha() const;
 
     std::function<void()> onChanged;
+    std::function<void(const QString&)> onAppended;
 private:
     QString m_content;
 };

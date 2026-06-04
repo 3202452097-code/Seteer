@@ -6,8 +6,13 @@
 #include <memory>
 #include "Effect.h"
 #include "Status.h"
+#include "abilitydata.h"
 
 class BattleContext;
+struct AbilityInstance {
+    QString abilityId;
+    int remainingTurns = 0;   // 0=永久, >0表示剩余回合
+};
 
 // ==================== Entity 基类 ====================
 class Entity {
@@ -26,6 +31,13 @@ public:
     void setStrength(int v) { m_strength = v; }
     void addStrength(int v) { m_strength += v; }
     void takeDamage(int dmg);
+    std::function<void(int damage)> onDamaged;
+
+    void addAbility(const QString& id, int duration = 0);
+    bool hasAbility(const QString& id) const;
+    void removeAbility(const QString& id);
+    void tickAbilities();   // 每回合减少持续时间并移除到期能力
+    void triggerAbilities(Trigger trigger, const QVariantMap& eventData, BattleContext& ctx);
 
     virtual void onTurnStart(BattleContext& ctx) {}
     virtual void onTurnEnd(BattleContext& ctx) {}
@@ -37,6 +49,7 @@ public:
     bool hasStatus(StatusType type) const { return getStatusAmount(type) > 0; }
     void tickStatuses();
     const QList<StatusInstance>& statuses() const { return m_statuses; }
+    const QList<AbilityInstance>& abilities() const { return m_abilities; }
 
 protected:
     int m_hp;
@@ -44,6 +57,7 @@ protected:
     int m_block = 0;
     int m_strength = 0;
     QList<StatusInstance> m_statuses;
+    QList<AbilityInstance> m_abilities;
 };
 
 // ==================== Player ====================
@@ -53,6 +67,7 @@ public:
     int energy() const { return m_energy; }
     int maxEnergy() const { return m_maxEnergy; }
     void setEnergy(int v);
+    void setMaxEnergy(int v) { m_maxEnergy = v; }
     void restoreEnergy();
     void onTurnStart(BattleContext& ctx) override;
 protected:
@@ -108,7 +123,6 @@ private: int m_turn = 0;
 // ── 精英 AI ──
 class AdMathAI : public EnemyAI {
 public: std::vector<Effect> decide(const BattleContext& ctx) override;
-    void onTurnStart(BattleContext& ctx) override;
 private: int m_turn = 0;
 };
 
@@ -121,14 +135,11 @@ private: int m_turn = 0;
 // ── Boss AI ──
 class DragonAI : public EnemyAI {
 public: std::vector<Effect> decide(const BattleContext& ctx) override;
-    void onTurnStart(BattleContext& ctx) override;
-    void onTurnEnd(BattleContext& ctx) override;
 private: int m_turn = 0; int m_phase = 1;
 };
 
 class GeniusAI : public EnemyAI {
 public: std::vector<Effect> decide(const BattleContext& ctx) override;
-    void onTurnStart(BattleContext& ctx) override;
 private: int m_turn = 0; bool m_enraged = false;
 };
 

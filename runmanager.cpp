@@ -13,15 +13,19 @@ RunManager::RunManager(QObject* parent) : QObject(parent) {}
 // ═══════════════════════════════════
 QList<Card> RunManager::defaultDeck() {
     QList<Card> deck;
-    for (int i = 0; i < 5; i++) deck.append(Card{"strike"});
-    for (int i = 0; i < 5; i++) deck.append(Card{"defend"});
-    for (int i = 0; i < 2; i++) deck.append(Card{"random_letter"});
-    for (int i = 0; i < 2; i++) deck.append(Card{"random_digit"});
-    deck.append(Card{"clear_burst"});
+    for (int i = 0; i < 4; i++) deck.append(Card{"strike"});
+    for (int i = 0; i < 4; i++) deck.append(Card{"defend"});
+    for (int i = 0; i < 1; i++) deck.append(Card{"random_letter"});
+    for (int i = 0; i < 1; i++) deck.append(Card{"random_digit"});
+    // deck.append(Card{"clear_burst"});
     deck.append(Card{"triple_letter"});
-    deck.append(Card{"digit_diff_strength"});
+    // deck.append(Card{"digit_diff_strength"});
     deck.append(Card{"test_vulnerable"});
     deck.append(Card{"test_weak"});
+    deck.append(Card{"random_letter_ability"});
+    deck.append(Card{"focus"});
+    deck.append(Card{"energy_pulse"});
+    deck.append(Card{"flash"});
     return deck;
 }
 

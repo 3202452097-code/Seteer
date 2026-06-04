@@ -9,6 +9,7 @@ struct CardData {
     QString id;
     QString name;
     int cost = 0;
+    bool exhaust = false;
     QString desc;
     QString imagePath;
     std::vector<Effect> effects;

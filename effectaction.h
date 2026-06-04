@@ -126,4 +126,34 @@ private:
     int m_duration;
     Target m_target;
 };
+//添加能力
+class AddAbilityAction : public EffectAction {
+public:
+    enum Target { Self, Enemy };
+    AddAbilityAction(const QString& abilityId, int duration, Target target = Self)
+        : m_abilityId(abilityId), m_duration(duration), m_target(target) {}
+    void execute(BattleContext& ctx) override;
+    QString description() const override;
+private:
+    QString m_abilityId;
+    int m_duration;
+    Target m_target;
+};
+//能量动作
+class GainEnergyAction : public EffectAction {
+public:
+    explicit GainEnergyAction(int amount) : m_amount(amount) {}
+    void execute(BattleContext& ctx) override;
+    QString description() const override;
+private:
+    int m_amount;
+};
+class SetMaxEnergyAction : public EffectAction {
+public:
+    explicit SetMaxEnergyAction(int newMax) : m_newMax(newMax) {}
+    void execute(BattleContext& ctx) override;
+    QString description() const override;
+private:
+    int m_newMax;
+};
 #endif // EFFECTACTION_H

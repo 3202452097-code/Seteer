@@ -3,6 +3,10 @@
         <file>resources/cards/strike.png</file>
         <file>resources/cards/defend.png</file>
         <file>resources/cards/bg.jpg</file>
+        <file>resources/sprite/player_idle.png</file>
+        <file>resources/sprite/enemy_idle.png</file>
+        <file>resources/icons/strength.png</file>
+        <file>resources/icons/status_vulnerable.png</file>
     </qresource>
     <qresource prefix="/new/prefix1"/>
 </RCC>

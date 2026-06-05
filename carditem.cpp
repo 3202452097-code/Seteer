@@ -73,6 +73,7 @@ void CardItem::hoverEnterEvent(QGraphicsSceneHoverEvent* event) {
         setZValue(100);
         setScale(1.08);
     }
+
     // 显示卡牌描述新增
     const CardData* data = m_card.data();
     if (data && !data->desc.isEmpty()) {
@@ -96,6 +97,7 @@ void CardItem::hoverMoveEvent(QGraphicsSceneHoverEvent* event) {
     QGraphicsPixmapItem::hoverMoveEvent(event);
 }
 //新增 end
+
 void CardItem::hoverLeaveEvent(QGraphicsSceneHoverEvent* event) {
     if (!m_isDragging) {
         setZValue(m_handIndex);

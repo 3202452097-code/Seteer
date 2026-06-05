@@ -193,29 +193,7 @@ void MainWindow::startBattleWithData(const QList<Card>& deck,
     m_game->setPlayerStartHP(hp);
     m_game->setPlayerStartStrength(strength);
 }
-/*原函数 为加入最终胜利图暂时注释
-void MainWindow::onBattleFinished(bool victory)
-{
-    GameOverMenu* menu = new GameOverMenu(victory, this);
-    menu->setGeometry((width() - 300) / 2, (height() - 180) / 2, 300, 180);
-    menu->show();
-    bool* returning = new bool(false);   // ★ 堆上分配，lambda 捕获
-    connect(menu, &GameOverMenu::returnToMenu, this, [this, menu, victory, returning]() {
-        if (*returning) return;          // ★ 防止重复触发
-        *returning = true;
-        menu->deleteLater();
-        if (m_game && victory) {
-            m_runManager->updatePlayerData(
-                m_game->runDeck(),
-                m_game->player().hp(),
-                0);
-        }
-        if (m_runManager) {
-            m_runManager->onBattleFinished(victory);
-        }
-        delete returning;
-    });
-}*/
+
 //新函数 加入最终胜利图版本
 void MainWindow::onBattleFinished(bool victory)
 {
@@ -247,6 +225,7 @@ void MainWindow::onBattleFinished(bool victory)
     }
 }
 //新函数 end
+
 void MainWindow::onRunFinished()
 {
     cleanupRun();

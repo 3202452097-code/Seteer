@@ -12,6 +12,7 @@
 #include "Entity.h"
 #include "StringSpace.h"
 #include "BattleContext.h"
+#include "spriteanimator.h"
 
 
 
@@ -43,6 +44,9 @@ public:
     int m_playerBarY = 0;
     int m_enemyBarX = 0;
     int m_enemyBarY = 0;
+
+    //转阶段控制
+    int m_lastEnemyPhase = 0;
 
 signals:
     void battleFinished(bool victory);
@@ -76,8 +80,20 @@ private:
     // ═══════════════════════════════════
 
     // 精灵
-    QGraphicsPixmapItem* m_playerSprite = nullptr;
-    QGraphicsPixmapItem* m_enemySprite = nullptr;
+    SpriteItem* m_playerSprite = nullptr;
+    SpriteItem* m_enemySprite = nullptr;
+
+    // 动画器
+    SpriteAnimator* m_animator = nullptr;
+    // 动画相关辅助
+    void setInputEnabled(bool enabled);
+    void executeCardEffects(int handIndex);
+    void performEnemyEffects();
+    void playDeathThenEnd(bool playerWon);
+    bool m_inputBlocked = false;
+    // 精灵动态尺寸记录（用于 UI 布局）
+    QSizeF m_playerSpriteSize;
+    QSizeF m_enemySpriteSize;
 
     // 血条（背景 + 前景）
     QGraphicsRectItem* m_playerHPBarBg = nullptr;
@@ -162,6 +178,10 @@ private:
     QPixmap getAbilityIcon(const QString& abilityId) const;
     QPixmap getStatIcon(const QString& statId) const; // 力量等
     QPixmap getShieldIcon() const;
+
+    //转阶段
+    void checkEnemyPhase();          // 检查敌人是否转阶段
+    bool m_dragonTransformed = false; // 龙是否已变过身
 };
 
 class TooltipIcon : public QGraphicsPixmapItem {

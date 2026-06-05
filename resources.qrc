@@ -8,6 +8,8 @@
         <file>resources/icons/strength.png</file>
         <file>resources/icons/status_vulnerable.png</file>
         <file>resources/cards/victory.jpg</file>
+        <file>resources/sprite/dragon.png</file>
+        <file>resources/sprite/dragon_the_end.png</file>
     </qresource>
     <qresource prefix="/new/prefix1"/>
 </RCC>

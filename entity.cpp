@@ -22,9 +22,8 @@ void Entity::takeDamage(int dmg) {
         dmg -= blocked;
     }
     m_hp = qMax(0, m_hp - dmg);
-    if (onDamaged && dmg > 0) {
-        onDamaged(dmg);
-    }
+    if (onDamaged && dmg > 0) onDamaged(dmg);
+    if (onHit     && dmg > 0) onHit(dmg);
 }
 
 // ==================== Status ====================
@@ -266,6 +265,10 @@ std::vector<Effect> DragonAI::decide(const BattleContext& ctx) {
         }
     }
     return effects;
+}
+
+int DragonAI::currentPhase() const {
+    return m_phase;
 }
 
 

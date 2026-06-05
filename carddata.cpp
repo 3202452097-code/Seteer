@@ -45,6 +45,7 @@ void CardDatabase::registerDefaults() {
             Effect(std::make_unique<LastCharIsAlphaCondition>(),
                    std::make_unique<ConsumeLastAlphaBlockAction>(5))
             );
+        c->isAttack = false;
         m_cards[c->id] = std::move(c);
     }
     // ── ★ 新增：随机字母 ──
@@ -58,6 +59,7 @@ void CardDatabase::registerDefaults() {
         c->effects.push_back(
             Effect(std::make_unique<WriteRandomLetterAction>())
             );
+        c->isAttack = false;
         m_cards[c->id] = std::move(c);
     }
     // ── ★ 新增：随机数字 ──
@@ -71,6 +73,7 @@ void CardDatabase::registerDefaults() {
         c->effects.push_back(
             Effect(std::make_unique<WriteRandomDigitAction>())
             );
+        c->isAttack = false;
         m_cards[c->id] = std::move(c);
     }
     // ── ★ 清空爆破 ──
@@ -97,6 +100,7 @@ void CardDatabase::registerDefaults() {
         c->effects.push_back(Effect(std::make_unique<WriteRandomLetterAction>()));
         c->effects.push_back(Effect(std::make_unique<WriteRandomLetterAction>()));
         c->effects.push_back(Effect(std::make_unique<WriteRandomLetterAction>()));
+        c->isAttack = false;
         m_cards[c->id] = std::move(c);
     }
     // ── ★ 数字差力量 ──
@@ -110,6 +114,7 @@ void CardDatabase::registerDefaults() {
         c->effects.push_back(
             Effect(std::make_unique<ConsumeLastTwoDigitsStrengthAction>())
             );
+        c->isAttack = false;
         m_cards[c->id] = std::move(c);
     }
     // ── 测试易伤 ──
@@ -146,6 +151,7 @@ void CardDatabase::registerDefaults() {
             Effect(std::make_unique<AddAbilityAction>("random_letter_start", 0, AddAbilityAction::Self))
             );
         c->exhaust = true;
+        c->isAttack = false;
         m_cards[c->id] = std::move(c);
     }
     // ── 能力牌：写入时加格挡 ──
@@ -160,6 +166,7 @@ void CardDatabase::registerDefaults() {
             Effect(std::make_unique<AddAbilityAction>("block_on_write", 0, AddAbilityAction::Self))
             );
         c->exhaust = true;
+        c->isAttack = false;
         m_cards[c->id] = std::move(c);
     }
     // ── 技能牌：本回合每打出一张牌造成5伤害 ──
@@ -173,6 +180,7 @@ void CardDatabase::registerDefaults() {
         c->effects.push_back(
             Effect(std::make_unique<AddAbilityAction>("temp_damage_per_card", 1, AddAbilityAction::Self))
             );
+        c->isAttack = false;
         m_cards[c->id] = std::move(c);
     }
     // ── 能力牌：专注 ──
@@ -187,6 +195,7 @@ void CardDatabase::registerDefaults() {
             Effect(std::make_unique<SetMaxEnergyAction>(4))
             );
         c->exhaust = true;
+        c->isAttack = false;
         m_cards[c->id] = std::move(c);
     }
     // ── 回费牌：充能脉冲 ──
@@ -205,6 +214,7 @@ void CardDatabase::registerDefaults() {
             Effect(std::make_unique<StringLengthLeCondition>(2),
                    std::make_unique<WriteStringAction>("000", true))
             );
+        c->isAttack = false;
         m_cards[c->id] = std::move(c);
     }
     // ── 抽牌：灵光一现 ──
@@ -218,6 +228,7 @@ void CardDatabase::registerDefaults() {
         c->effects.push_back(
             Effect(std::make_unique<DrawAction>(2))
             );
+        c->isAttack = false;
         m_cards[c->id] = std::move(c);
     }
 }

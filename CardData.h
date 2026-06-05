@@ -10,6 +10,7 @@ struct CardData {
     QString name;
     int cost = 0;
     bool exhaust = false;
+    bool isAttack = true;
     QString desc;
     QString imagePath;
     std::vector<Effect> effects;

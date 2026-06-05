@@ -32,6 +32,7 @@ public:
     void addStrength(int v) { m_strength += v; }
     void takeDamage(int dmg);
     std::function<void(int damage)> onDamaged;
+    std::function<void(int damage)> onHit;
 
     void addAbility(const QString& id, int duration = 0);
     bool hasAbility(const QString& id) const;
@@ -82,6 +83,9 @@ public:
 
     // ★ 返回本回合效果列表
     virtual std::vector<Effect> decide(const BattleContext& ctx) = 0;
+
+    // 返回当前阶段（默认 0，表示无阶段概念）
+    virtual int currentPhase() const { return 0; }
 
     // 可选回调
     virtual void onTurnStart(BattleContext& ctx) {}
@@ -135,6 +139,7 @@ private: int m_turn = 0;
 // ── Boss AI ──
 class DragonAI : public EnemyAI {
 public: std::vector<Effect> decide(const BattleContext& ctx) override;
+        int currentPhase() const override;
 private: int m_turn = 0; int m_phase = 1;
 };
 
@@ -196,7 +201,7 @@ public: LinearAlgebra(int hp = 60);
 
 // ── Boss 派生类 ──
 class Dragon : public Enemy {
-public: Dragon(int hp = 140);
+public: Dragon(int hp = 200);
 };
 class Genius : public Enemy {
 public: Genius(int hp = 120);

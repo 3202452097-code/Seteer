@@ -34,10 +34,11 @@ Game::Game(QWidget *parent)
 void Game::createUIElements()
 {
     // ── 精灵 ──
-    m_playerSprite = m_scene->addPixmap(QPixmap());
-    m_playerSprite->setVisible(false);
-    m_enemySprite = m_scene->addPixmap(QPixmap());
-    m_enemySprite->setVisible(false);
+    m_playerSprite = new SpriteItem();
+    m_enemySprite = new SpriteItem();
+    m_scene->addItem(m_playerSprite);
+    m_scene->addItem(m_enemySprite);
+    m_animator = new SpriteAnimator(this);
 
     // ── 玩家血条 ──
     m_playerHPBarBg = m_scene->addRect(0, 0, HP_BAR_W, HP_BAR_H,
@@ -158,6 +159,8 @@ void Game::initBattle() {
     for (auto* item : m_handItems) m_scene->removeItem(item);
     m_handItems.clear();
     m_selectedCard = nullptr;
+    m_dragonTransformed = false;
+    //m_lastEnemyPhase = m_enemy->getAI() ? m_enemy->getAI()->currentPhase() : 0;
 
     // 卡组
     if (!m_initialDeck.isEmpty()) {
@@ -191,43 +194,51 @@ void Game::initBattle() {
 
     // ★ 加载精灵图
     QPixmap playerPix(":/resources/sprite/player_idle.png");
-    if (!playerPix.isNull()) {
-        m_playerSprite->setPixmap(playerPix.scaled(SPRITE_W, SPRITE_H, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-        m_playerSprite->setVisible(true);
+    if (playerPix.isNull()) {
+        playerPix = QPixmap(150, 200);
+        playerPix.fill(Qt::gray);
+    }
+    m_playerSprite->setPixmap(playerPix.scaled(150, 200, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    m_playerSpriteSize = QSizeF(m_playerSprite->pixmap().width(), m_playerSprite->pixmap().height());
+    // ---- 敌人精灵 ----
+    int maxEnemyW = 250;
+    QString enemySpritePath;
+    // QPixmap enemyPix(":/resources/sprite/enemy_idle.png");
+    // if (enemyPix.isNull()) {
+    //     enemyPix = QPixmap(200, 250);
+    //     enemyPix.fill(Qt::red);
+    // }
+    if (m_enemyId == "dragon") {
+        enemySpritePath = ":/resources/sprite/dragon.png";
+        maxEnemyW = 400;          // 龙更大一些
     } else {
-        // 占位：灰色矩形 + 文字
-        QPixmap placeholder(SPRITE_W, SPRITE_H);
-        placeholder.fill(QColor(80, 80, 100));
-        QPainter p(&placeholder);
-        p.setPen(Qt::white);
-        p.setFont(QFont("Sans", 14));
-        p.drawText(placeholder.rect(), Qt::AlignCenter, "玩家");
-        p.end();
-        m_playerSprite->setPixmap(placeholder);
-        m_playerSprite->setVisible(true);
+        enemySpritePath = ":/resources/sprite/enemy_idle.png";
+        // 其余敌人保持默认 maxEnemyW=250
+    }
+    QPixmap enemyPix;
+    if (!enemySpritePath.isEmpty())
+        enemyPix.load(enemySpritePath);
+    if (enemyPix.isNull()) {
+        // 回退到纯色占位
+        enemyPix = QPixmap(200, 250);
+        enemyPix.fill(Qt::red);
     }
 
-    QPixmap enemyPix(":/resources/sprite/enemy_idle.png");
-    if (!enemyPix.isNull()) {
-        m_enemySprite->setPixmap(enemyPix.scaled(SPRITE_W, SPRITE_H, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-        m_enemySprite->setVisible(true);
-    } else {
-        QPixmap placeholder(SPRITE_W, SPRITE_H);
-        placeholder.fill(QColor(100, 60, 60));
-        QPainter p(&placeholder);
-        p.setPen(Qt::white);
-        p.setFont(QFont("Sans", 14));
-        p.drawText(placeholder.rect(), Qt::AlignCenter, "敌人");
-        p.end();
-        m_enemySprite->setPixmap(placeholder);
-        m_enemySprite->setVisible(true);
-    }
+    QSize scaledSize = enemyPix.size().scaled(maxEnemyW, 500, Qt::KeepAspectRatio);
+    m_enemySprite->setPixmap(enemyPix.scaled(scaledSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    m_enemySpriteSize = QSizeF(m_enemySprite->pixmap().width(), m_enemySprite->pixmap().height());
+    m_playerSprite->setVisible(true);
+    m_enemySprite->setVisible(true);
+    // ---- 绑定受击动画 ----
+    m_player.onHit = [this](int) { m_animator->playHit(m_playerSprite); };
+    m_enemy->onHit = [this](int) { m_animator->playHit(m_enemySprite); };
+
     // 给玩家绑定
     m_player.onDamaged = [this](int dmg) {
         auto* text = m_scene->addText(QString("-%1").arg(dmg));
         text->setDefaultTextColor(Qt::red);
         text->setFont(QFont("Sans", 16, QFont::Bold));
-        QPointF pos = m_playerSprite->pos() + QPointF(SPRITE_W / 2, -20);
+        QPointF pos = m_playerSprite->pos() + QPointF(m_playerSpriteSize.width() / 2, -20);
         text->setPos(pos);
         // 动画：上飘 + 淡出
         auto* anim = new QPropertyAnimation(text, "pos");
@@ -254,7 +265,7 @@ void Game::initBattle() {
         auto* text = m_scene->addText(QString("-%1").arg(dmg));
         text->setDefaultTextColor(Qt::yellow);
         text->setFont(QFont("Sans", 16, QFont::Bold));
-        QPointF pos = m_enemySprite->pos() + QPointF(SPRITE_W / 2, -20);
+        QPointF pos = m_enemySprite->pos() + QPointF(m_enemySpriteSize.width() / 2, -20);
         text->setPos(pos);
         auto* anim = new QPropertyAnimation(text, "pos");
         anim->setDuration(800);
@@ -298,6 +309,7 @@ void Game::initBattle() {
 
 // ==================== 回合 ====================
 void Game::startPlayerTurn() {
+    setInputEnabled(true);
     BattleContext ctx = buildContext();
     m_player.onTurnStart(ctx);
     ctx.attacker = &m_player;
@@ -324,9 +336,38 @@ void Game::startPlayerTurn() {
 void Game::endPlayerTurn() {
     qInfo() << "--- 玩家回合结束 ---";
     discardHand();
+
+    checkEnemyPhase();
+
     m_state = EnemyTurn;
     enemyAction();
     updateUI();
+}
+
+void Game::checkEnemyPhase() {
+    // 安全保护
+    if (!m_enemy || !m_enemy->getAI()) return;
+
+    int currentPhase = m_enemy->getAI()->currentPhase();
+    // 阶段未变，直接返回
+    if (currentPhase == m_lastEnemyPhase) return;
+
+    // ═══ 龙转阶段换图 ═══
+    if (m_enemyId == "dragon" && currentPhase == 2 && !m_dragonTransformed) {
+        QPixmap newPix(":/resources/sprite/dragon_the_end.png");
+        if (!newPix.isNull()) {
+            int maxW = 400;   // 与初始龙保持一致
+            QSize scaled = newPix.size().scaled(maxW, 500, Qt::KeepAspectRatio);
+            m_enemySprite->setPixmap(newPix.scaled(scaled, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            m_enemySpriteSize = QSizeF(m_enemySprite->pixmap().width(), m_enemySprite->pixmap().height());
+            updateUI();
+        }
+        m_dragonTransformed = true;
+    }
+
+    // ═══ 未来其他 Boss 的阶段图片切换可在此继续添加 ═══
+
+    m_lastEnemyPhase = currentPhase;   // 更新缓存
 }
 
 // ==================== 抽牌 ====================
@@ -350,17 +391,47 @@ void Game::drawCards(int count) {
 }
 
 // ==================== 出牌 ====================
-void Game::playCard(int handIndex) {
+// void Game::playCard(int handIndex) {
+//     if (handIndex < 0 || handIndex >= m_hand.size()) return;
+//     Card card = m_hand[handIndex];
+//     const CardData* data = card.data();
+//     if (!data) return;
+//     if (data->cost > m_player.energy()) {
+//         qInfo() << "能量不足！";
+//         rearrangeHand();
+//         return;
+//     }
+//     m_player.setEnergy(m_player.energy() - data->cost);
+//     BattleContext ctx = buildContext();
+//     ctx.attacker = &m_player;
+//     ctx.defender = m_enemy.get();
+//     m_player.triggerAbilities(Trigger::OnCardPlayed, {}, ctx);
+//     for (auto& eff : data->effects) {
+//         eff.execute(ctx);
+//         if (m_enemy->isDead()) break;
+//     }
+//     CardItem* item = m_handItems.takeAt(handIndex);
+//     QTimer::singleShot(0, this, [this, item]() {
+//         m_scene->removeItem(item); delete item;
+//     });
+//     m_hand.removeAt(handIndex);
+//     if (!data->exhaust) m_discardPile.append(card);
+//     m_selectedCard = nullptr;
+//     for (int i = 0; i < m_handItems.size(); i++) m_handItems[i]->setHandIndex(i);
+//     rearrangeHand();
+//     updateUI();
+//     if (m_state != GameOver && m_enemy->isDead()) {
+//         m_state = GameOver;
+//         emit battleFinished(true);
+//     }
+// }
+
+void Game::executeCardEffects(int handIndex)
+{
     if (handIndex < 0 || handIndex >= m_hand.size()) return;
     Card card = m_hand[handIndex];
     const CardData* data = card.data();
     if (!data) return;
-    if (data->cost > m_player.energy()) {
-        qInfo() << "能量不足！";
-        rearrangeHand();
-        return;
-    }
-    m_player.setEnergy(m_player.energy() - data->cost);
     BattleContext ctx = buildContext();
     ctx.attacker = &m_player;
     ctx.defender = m_enemy.get();
@@ -379,9 +450,52 @@ void Game::playCard(int handIndex) {
     for (int i = 0; i < m_handItems.size(); i++) m_handItems[i]->setHandIndex(i);
     rearrangeHand();
     updateUI();
-    if (m_state != GameOver && m_enemy->isDead()) {
-        m_state = GameOver;
-        emit battleFinished(true);
+}
+void Game::performEnemyEffects()
+{
+    BattleContext ctx = buildContext();
+    m_enemy->onTurnStart(ctx);
+    ctx.attacker = m_enemy.get();
+    ctx.defender = &m_player;
+    m_enemy->triggerAbilities(Trigger::OnTurnStart, {}, ctx);
+    m_enemy->executeSpecialEffect(ctx);
+    std::vector<Effect> effects = m_enemy->takePendingEffects();
+    for (auto& eff : effects) {
+        eff.execute(ctx);
+        if (m_player.isDead()) break;
+    }
+    m_enemy->onTurnEnd(ctx);
+    m_enemy->triggerAbilities(Trigger::OnTurnEnd, {}, ctx);
+}
+
+void Game::playCard(int handIndex)
+{
+    if (m_state != PlayerTurn || m_inputBlocked) return;
+    const CardData* data = m_hand[handIndex].data();
+    if (!data) return;
+    if (data->cost > m_player.energy()) {
+        rearrangeHand();
+        return;
+    }
+    m_player.setEnergy(m_player.energy() - data->cost);
+    executeCardEffects(handIndex);
+    // 无论如何都播放攻击动画（视觉反馈）
+    if (data->isAttack) {
+        m_animator->playAttack(m_playerSprite, true);
+    } else {
+        m_animator->playAction(m_playerSprite);
+    }
+    // 如果敌人死亡，启动死亡动画（与攻击动画并行）
+    if (m_enemy->isDead()) {
+        m_animator->playDeath(m_enemySprite);
+        // 连接死亡动画结束信号，切换游戏结束
+        connect(m_animator, &SpriteAnimator::finished, this,
+                [this](const QString &type) {
+                    if (type != "Death") return;
+                    disconnect(m_animator, &SpriteAnimator::finished, this, nullptr);
+                    m_state = GameOver;
+                    emit battleFinished(true);
+                });
     }
 }
 
@@ -397,41 +511,75 @@ void Game::discardHand() {
 // ==================== 敌人 ====================
 void Game::enemyAction() {
     if (m_state == GameOver) return;
-    BattleContext ctx = buildContext();
-    m_enemy->onTurnStart(ctx);
-    ctx.attacker = m_enemy.get();
-    ctx.defender = &m_player;
-    m_enemy->triggerAbilities(Trigger::OnTurnStart, {}, ctx);
-    m_enemy->executeSpecialEffect(ctx);
-    ctx.attacker = m_enemy.get();
-    ctx.defender = &m_player;
-    std::vector<Effect> effects = m_enemy->takePendingEffects();
-    for (auto& eff : effects) {
-        eff.execute(ctx);
-        if (m_player.isDead()) break;
-    }
-    m_enemy->onTurnEnd(ctx);
-    m_enemy->triggerAbilities(Trigger::OnTurnEnd, {}, ctx);
-    checkGameOver();
-    if (m_state != GameOver) {
-        m_enemy->decideIntent(ctx);
-        startPlayerTurn();
+    setInputEnabled(false);
+    connect(m_animator, &SpriteAnimator::finished, this,
+            [this](const QString &type) {
+                if (type != "Attack") return;
+                disconnect(m_animator, &SpriteAnimator::finished, this, nullptr);
+                performEnemyEffects();
+                if (m_player.isDead()) {
+                    updateUI();
+                    m_animator->playDeath(m_playerSprite);
+                    connect(m_animator, &SpriteAnimator::finished, this,
+                            [this](const QString &t) {
+                                if (t != "Death") return;
+                                disconnect(m_animator, &SpriteAnimator::finished, this, nullptr);
+                                m_state = GameOver;
+                                emit battleFinished(false);
+                            });
+                } else {
+                    BattleContext ctx = buildContext();
+                    m_enemy->decideIntent(ctx);
+                    checkEnemyPhase();
+                    startPlayerTurn();
+                }
+            });
+    m_animator->playAttack(m_enemySprite, false);
+}
+
+void Game::playDeathThenEnd(bool playerWon)
+{
+    setInputEnabled(false);
+    SpriteItem* dying = playerWon ? m_enemySprite : m_playerSprite;
+    m_animator->cancelAll();
+    disconnect(m_animator, &SpriteAnimator::finished, this, nullptr);
+    connect(m_animator, &SpriteAnimator::finished, this,
+            [this, playerWon](const QString &type) {
+                if (type != "Death") return;
+                disconnect(m_animator, &SpriteAnimator::finished, this, nullptr);
+                m_state = GameOver;
+                if (playerWon)
+                    emit battleFinished(true);
+                else
+                    emit battleFinished(false);
+            });
+    m_animator->playDeath(dying);
+}
+void Game::checkGameOver()
+{
+    if (m_player.isDead() && m_state != GameOver) {
+        m_state = GameOver;   // 防止重复
+        playDeathThenEnd(false);
+    } else if (m_enemy->isDead() && m_state != GameOver) {
+        m_state = GameOver;
+        playDeathThenEnd(true);
     }
 }
 
-void Game::checkGameOver() {
-    if (m_player.isDead() && m_state != GameOver) {
-        m_state = GameOver;
-        emit battleFinished(false);
-    } else if (m_enemy->isDead() && m_state != GameOver) {
-        m_state = GameOver;
-        emit battleFinished(true);
-    }
-}
+// void Game::checkGameOver() {
+//     if (m_player.isDead() && m_state != GameOver) {
+//         m_state = GameOver;
+//         emit battleFinished(false);
+//     } else if (m_enemy->isDead() && m_state != GameOver) {
+//         m_state = GameOver;
+//         emit battleFinished(true);
+//     }
+// }
+
 
 // ==================== CardItem 回调 ====================
 void Game::onCardClicked(CardItem* item) {
-    if (m_state == GameOver) return;
+    if (m_state == GameOver || m_inputBlocked) return;
     if (m_selectedCard == item) { m_selectedCard = nullptr; }
     else {
         if (m_selectedCard) rearrangeHand();
@@ -442,7 +590,7 @@ void Game::onCardClicked(CardItem* item) {
     updateUI();
 }
 void Game::onCardDragged(CardItem* item, const QPointF& releasePos) {
-    if (m_state == GameOver) return;
+    if (m_state == GameOver || m_inputBlocked) return;
     if (releasePos.y() < PLAY_ZONE_Y) playCard(item->handIndex());
     else { rearrangeHand(); m_selectedCard = nullptr; }
     updateUI();
@@ -672,23 +820,25 @@ void Game::updateUI() {
     // ═══════════════════════════════════
     // 精灵位置
     // ═══════════════════════════════════
-    int playerSpriteX = 140;
-    int playerSpriteY = h / 2 - SPRITE_H / 2 - 40;
-    m_playerSprite->setPos(playerSpriteX, playerSpriteY);
-
-    int enemySpriteX = w - 140 - SPRITE_W;
-    int enemySpriteY = h / 2 - SPRITE_H / 2 - 40;
-    m_enemySprite->setPos(enemySpriteX, enemySpriteY);
-
-    int playerBarX = playerSpriteX + (SPRITE_W - HP_BAR_W) / 2;
-    int playerBarY = playerSpriteY + SPRITE_H + 10;
+    // 玩家位置
+    int playerX = 80;
+    int playerY = h / 2 - m_playerSpriteSize.height() / 2;
+    m_playerSprite->setPos(playerX, playerY);
+    // 敌人位置
+    int enemyX = w - 80 - m_enemySpriteSize.width();
+    int enemyY = h / 2 - m_enemySpriteSize.height() / 2;
+    m_enemySprite->setPos(enemyX, enemyY);
+    // 血条位置基于精灵实际大小调整
+    int playerBarX = playerX + (m_playerSpriteSize.width() - HP_BAR_W) / 2;
+    int playerBarY = playerY + m_playerSpriteSize.height() + 10;
+    int enemyBarX = enemyX + (m_enemySpriteSize.width() - HP_BAR_W) / 2;
+    int enemyBarY = enemyY + m_enemySpriteSize.height() + 10;
+    // 更新成员变量，供 updateStatusIcons 使用
     m_playerBarX = playerBarX;
     m_playerBarY = playerBarY;
-    // ... 敌人血条同样
-    int enemyBarX = enemySpriteX + (SPRITE_W - HP_BAR_W) / 2;
-    int enemyBarY = enemySpriteY + SPRITE_H + 10;
     m_enemyBarX = enemyBarX;
     m_enemyBarY = enemyBarY;
+
 
 
     // ═══════════════════════════════════
@@ -776,8 +926,9 @@ void Game::updateUI() {
     // ═══════════════════════════════════
     m_enemyIntentText->setPlainText(m_enemy->intentDescription());
     QRectF intentRect = m_enemyIntentText->boundingRect();
-    m_enemyIntentText->setPos(enemySpriteX + (SPRITE_W - intentRect.width()) / 2,
-                              enemySpriteY - intentRect.height() - 10);
+    QPointF enemyPos = m_enemySprite->pos();
+    m_enemyIntentText->setPos(enemyPos.x() + (m_enemySpriteSize.width() - intentRect.width()) / 2,
+                              enemyPos.y() - intentRect.height() - 10);
 
     // ═══════════════════════════════════
     // 祈福（左上角）
@@ -859,9 +1010,17 @@ void Game::setEndTurnButtonVisible(bool visible) {
     m_endTurnLabel->setVisible(visible);
 }
 
+
+
 // ==================== 鼠标点击 ====================
+void Game::setInputEnabled(bool enabled)
+{
+    m_inputBlocked = !enabled;
+    m_endTurnButton->setVisible(enabled);
+    m_endTurnLabel->setVisible(enabled);
+}
 void Game::mousePressEvent(QMouseEvent* event) {
-    if (m_state == GameOver) return;
+    if (m_state == GameOver || m_inputBlocked) return;
     QPointF scenePos = mapToScene(event->pos());
     if (m_endTurnButton->contains(m_endTurnButton->mapFromScene(scenePos))
         && m_state == PlayerTurn) {

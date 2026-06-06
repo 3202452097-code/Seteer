@@ -160,7 +160,10 @@ void Game::initBattle() {
     m_handItems.clear();
     m_selectedCard = nullptr;
     m_dragonTransformed = false;
-    //m_lastEnemyPhase = m_enemy->getAI() ? m_enemy->getAI()->currentPhase() : 0;
+    // ★ 安全地获取初始阶段
+    // if (m_enemy->getAI())
+    //     m_lastEnemyPhase = m_enemy->getAI()->currentPhase();
+    //
 
     // 卡组
     if (!m_initialDeck.isEmpty()) {
@@ -201,29 +204,27 @@ void Game::initBattle() {
     m_playerSprite->setPixmap(playerPix.scaled(150, 200, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     m_playerSpriteSize = QSizeF(m_playerSprite->pixmap().width(), m_playerSprite->pixmap().height());
     // ---- 敌人精灵 ----
-    int maxEnemyW = 250;
-    QString enemySpritePath;
-    // QPixmap enemyPix(":/resources/sprite/enemy_idle.png");
-    // if (enemyPix.isNull()) {
-    //     enemyPix = QPixmap(200, 250);
-    //     enemyPix.fill(Qt::red);
-    // }
-    if (m_enemyId == "dragon") {
-        enemySpritePath = ":/resources/sprite/dragon.png";
-        maxEnemyW = 400;          // 龙更大一些
-    } else {
-        enemySpritePath = ":/resources/sprite/enemy_idle.png";
-        // 其余敌人保持默认 maxEnemyW=250
-    }
-    QPixmap enemyPix;
-    if (!enemySpritePath.isEmpty())
-        enemyPix.load(enemySpritePath);
+    int maxEnemyW = 250;   // 默认最大宽度
+    // 1. 尝试加载敌人专属图片 enemy_<id>.png
+    QString specificPath = QString(":/resources/sprite/enemy_%1.png").arg(m_enemyId);
+    QPixmap enemyPix(specificPath);
+    // 2. 如果专属图片不存在，回退到通用 enemy_idle.png
     if (enemyPix.isNull()) {
-        // 回退到纯色占位
+        enemyPix.load(":/resources/sprite/enemy_idle.png");
+    } else {
+        // 加载成功，可针对不同敌人微调最大宽度
+        if (m_enemyId == "dragon") {
+            maxEnemyW = 400;
+        } else if (m_enemyId == "linearalgebra") {
+            maxEnemyW = 280;
+        }
+        // 未来在此扩展其他敌人的尺寸
+    }
+    // 3. 如果连通用 idle 图都加载失败，用纯色占位
+    if (enemyPix.isNull()) {
         enemyPix = QPixmap(200, 250);
         enemyPix.fill(Qt::red);
     }
-
     QSize scaledSize = enemyPix.size().scaled(maxEnemyW, 500, Qt::KeepAspectRatio);
     m_enemySprite->setPixmap(enemyPix.scaled(scaledSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     m_enemySpriteSize = QSizeF(m_enemySprite->pixmap().width(), m_enemySprite->pixmap().height());
@@ -816,23 +817,25 @@ QPixmap Game::getBlessingIcon(const QString& blessingId) const {
 void Game::updateUI() {
     int w = width();
     int h = height();
+    // 统一的“地面”高度（精灵底部贴齐这条线）
+    int groundY = h / 2 + 100;
 
     // ═══════════════════════════════════
     // 精灵位置
     // ═══════════════════════════════════
     // 玩家位置
     int playerX = 80;
-    int playerY = h / 2 - m_playerSpriteSize.height() / 2;
+    int playerY = groundY - m_playerSpriteSize.height();
     m_playerSprite->setPos(playerX, playerY);
     // 敌人位置
     int enemyX = w - 80 - m_enemySpriteSize.width();
-    int enemyY = h / 2 - m_enemySpriteSize.height() / 2;
+    int enemyY = groundY - m_enemySpriteSize.height();
     m_enemySprite->setPos(enemyX, enemyY);
-    // 血条位置基于精灵实际大小调整
+    // 血条统一放在 groundY 下方 10 像素
     int playerBarX = playerX + (m_playerSpriteSize.width() - HP_BAR_W) / 2;
-    int playerBarY = playerY + m_playerSpriteSize.height() + 10;
+    int playerBarY = groundY + 10;
     int enemyBarX = enemyX + (m_enemySpriteSize.width() - HP_BAR_W) / 2;
-    int enemyBarY = enemyY + m_enemySpriteSize.height() + 10;
+    int enemyBarY = groundY + 10;
     // 更新成员变量，供 updateStatusIcons 使用
     m_playerBarX = playerBarX;
     m_playerBarY = playerBarY;
@@ -973,7 +976,7 @@ void Game::updateUI() {
     QString pile = QString("📦抽:%1  🗑️弃:%2  ✋手:%3")
                        .arg(m_drawPile.size()).arg(m_discardPile.size()).arg(m_hand.size());
     m_pileInfoText->setPlainText(pile);
-    m_pileInfoText->setPos(w - 220, 20);
+    m_pileInfoText->setPos(20, h - 150);
 
     // ═══════════════════════════════════
     // 结束回合按钮

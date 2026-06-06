@@ -156,4 +156,25 @@ public:
 private:
     int m_newMax;
 };
+// 抽牌 + 条件伤害
+class DrawAndConditionalDamageAction : public EffectAction {
+public:
+    explicit DrawAndConditionalDamageAction(int drawCount, int baseDamageFactor = 2, int maxLen = 3);
+    void execute(BattleContext& ctx) override;
+    QString description() const override;
+private:
+    int m_drawCount;
+    int m_baseDamageFactor;   // 伤害倍数
+    int m_maxLen;             // 触发伤害的最大长度
+};
+// 移除所有字符 + 随机多段伤害 + 副作用
+class ChaosRemoveAction : public EffectAction {
+public:
+    ChaosRemoveAction(int minDamage = 0, int maxDamage = 5);
+    void execute(BattleContext& ctx) override;
+    QString description() const override;
+private:
+    int m_minDamage;
+    int m_maxDamage;
+};
 #endif // EFFECTACTION_H

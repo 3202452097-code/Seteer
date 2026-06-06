@@ -231,6 +231,32 @@ void CardDatabase::registerDefaults() {
         c->isAttack = false;
         m_cards[c->id] = std::move(c);
     }
+    // ── 灵巧抽牌 ──
+    {
+        auto c = std::make_unique<CardData>();
+        c->id        = "swift_draw";
+        c->name      = "灵巧抽牌";
+        c->cost      = 0;
+        c->desc      = "抽1张牌。若字符串空间长度 ≤ 3，造成 2×(3-长度) 点伤害。";
+        c->effects.push_back(
+            Effect(std::make_unique<DrawAndConditionalDamageAction>(1, 2, 3))
+            );
+        c->isAttack = true;   // 可能造成伤害，设为攻击牌
+        m_cards[c->id] = std::move(c);
+    }
+    // ── 混沌瓦解 ──
+    {
+        auto c = std::make_unique<CardData>();
+        c->id        = "chaos_break";
+        c->name      = "混沌瓦解";
+        c->cost      = 1;
+        c->desc      = "移除所有字符，造成每字符0~5点随机伤害。若字母多于数字，移除自身所有格挡；若数字多于字母，自身受到总伤害一半。";
+        c->effects.push_back(
+            Effect(std::make_unique<ChaosRemoveAction>(0, 5))
+            );
+        c->isAttack = true;
+        m_cards[c->id] = std::move(c);
+    }
 }
 const CardData* CardDatabase::cardById(const QString& id) const {
     auto it = m_cards.find(id);

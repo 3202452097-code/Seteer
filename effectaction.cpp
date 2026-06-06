@@ -194,3 +194,89 @@ void SetMaxEnergyAction::execute(BattleContext& ctx) {
 QString SetMaxEnergyAction::description() const {
     return QString("将最大能量提升至 %1").arg(m_newMax);
 }
+// ==================== DrawAndConditionalDamageAction ====================
+DrawAndConditionalDamageAction::DrawAndConditionalDamageAction(int drawCount, int baseDamageFactor, int maxLen)
+    : m_drawCount(drawCount), m_baseDamageFactor(baseDamageFactor), m_maxLen(maxLen) {}
+
+void DrawAndConditionalDamageAction::execute(BattleContext& ctx) {
+    // 抽牌
+    if (ctx.drawCards) {
+        ctx.drawCards(m_drawCount);
+    }
+    // 条件伤害
+    int len = ctx.stringSpace->length();
+    if (len <= m_maxLen) {
+        int damage = m_baseDamageFactor * (m_maxLen - len);
+        if (damage > 0) {
+            // 使用现有 DamageAction 逻辑（复用）
+            DamageAction dmgAct(EffectValue::fixed(damage));
+            dmgAct.execute(ctx);
+        }
+    }
+}
+
+QString DrawAndConditionalDamageAction::description() const {
+    return QString("抽 %1 张牌。若字符串长度 ≤ %2，造成 %3 × (%2 - 长度) 点伤害")
+        .arg(m_drawCount).arg(m_maxLen).arg(m_baseDamageFactor);
+}
+// ==================== ChaosRemoveAction ====================
+ChaosRemoveAction::ChaosRemoveAction(int minDamage, int maxDamage)
+    : m_minDamage(minDamage), m_maxDamage(maxDamage) {}
+
+void ChaosRemoveAction::execute(BattleContext& ctx) {
+    // 1. 分析当前字符串内容
+    QString content = ctx.stringSpace->content();
+    int totalChars = content.length();
+    if (totalChars == 0) return;  // 无字符则无效果
+
+    int letterCount = 0, digitCount = 0;
+    for (QChar ch : content) {
+        if (ch.isLetter()) letterCount++;
+        else if (ch.isDigit()) digitCount++;
+    }
+
+    // 2. 移除所有字符
+    ctx.stringSpace->clear();
+
+    // 3. 随机多段伤害，计算总伤害
+    int totalDamage = 0;
+    for (int i = 0; i < totalChars; ++i) {
+        int dmg = QRandomGenerator::global()->bounded(m_minDamage, m_maxDamage + 1);
+        totalDamage += dmg;
+        if (dmg > 0) {
+            // 对敌人造成每次伤害
+            DamageAction dmgAct(EffectValue::fixed(dmg));
+            // 注意：DamageAction 依赖 ctx.defender，需要确保 enemy 是 defender
+            dmgAct.execute(ctx);
+        }
+    }
+
+    // 4. 副作用：根据字母/数字数量差
+    int diff = letterCount - digitCount;
+    if (diff > 0) {
+        // 移除自身所有格挡
+        if (ctx.attacker) {
+            ctx.attacker->setBlock(0);
+        }
+    } else if (diff < 0) {
+        // 对自己造成总伤害的一半（向上取整）
+        int selfDamage = (totalDamage + 1) / 2;  // 向上取整
+        if (selfDamage > 0 && ctx.attacker) {
+            // 临时交换 attacker/defender 来对自己造成伤害
+            Entity* originalAttacker = ctx.attacker;
+            Entity* originalDefender = ctx.defender;
+            ctx.attacker = ctx.player;   // 自己攻击自己
+            ctx.defender = ctx.player;
+            DamageAction selfDmg(EffectValue::fixed(selfDamage));
+            selfDmg.execute(ctx);
+            // 恢复上下文
+            ctx.attacker = originalAttacker;
+            ctx.defender = originalDefender;
+        }
+    }
+}
+
+QString ChaosRemoveAction::description() const {
+    return QString("移除所有字符，造成每字符 %1~%2 点随机伤害。若字母多于数字，移除自身所有格挡；若数字多于字母，自身受到总伤害一半。")
+        .arg(m_minDamage).arg(m_maxDamage);
+}

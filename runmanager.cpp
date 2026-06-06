@@ -27,6 +27,8 @@ QList<Card> RunManager::defaultDeck() {
     deck.append(Card{"energy_pulse"});
     deck.append(Card{"flash"});
     deck.append(Card{"flash"});
+    deck.append(Card{"swift_draw"});
+    deck.append(Card{"chaos_break"});
     return deck;
 }
 

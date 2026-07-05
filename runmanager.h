@@ -36,6 +36,9 @@ public:
     QList<QString> playerBlessings() const { return m_playerData.blessings; }
     int playerHP() const               { return m_playerData.hp; }
     int playerStrength() const         { return m_playerData.strength; }
+    // 新增存档接口
+    bool saveToFile(const QString& path = "save.json");
+    bool loadFromFile(const QString& path = "save.json");
 
 signals:
     void runFinished();

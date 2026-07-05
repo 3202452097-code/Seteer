@@ -11,7 +11,8 @@
 #include <QLabel>
 #include <QStackedWidget>
 #include <QMessageBox>
-
+#include <QFileDialog>
+#include <QMessageBox>
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -240,7 +241,46 @@ void MainWindow::on_newGameButton_clicked()
 
 void MainWindow::on_loadGameButton_clicked()
 {
-    // [临时注释] 读档暂不可用
+    // 如果已有游戏进程，先清理
+    if (m_runManager) {
+        // 询问是否覆盖当前进度
+        int ret = QMessageBox::question(this, "确认", "当前游戏进度将被覆盖，是否继续？");
+        if (ret != QMessageBox::Yes)
+            return;
+        cleanupRun();
+    }
+
+    QString filePath = QFileDialog::getOpenFileName(this, "读取存档", "", "JSON Files (*.json)");
+    if (filePath.isEmpty())
+        return;
+
+    // 创建 RunManager（尚未 start）
+    m_runManager = new RunManager(this);
+    connect(m_runManager, &RunManager::runFinished,
+            this, &MainWindow::onRunFinished);
+    connect(m_runManager, &RunManager::blessingOptionsAvailable,
+            this, &MainWindow::onBlessingOptions);
+    connect(m_runManager, &RunManager::cardPickOptionsAvailable,
+            this, &MainWindow::onCardPickOptions);
+    connect(m_runManager, &RunManager::restOptionAvailable,
+            this, &MainWindow::onRestOption);
+    connect(m_runManager, &RunManager::battleStarting,
+            this, &MainWindow::onBattleFloor);
+
+    connect(this, &MainWindow::blessingSelected,
+            m_runManager, &RunManager::onBlessingChosen);
+    connect(this, &MainWindow::cardSelected,
+            m_runManager, &RunManager::onCardChosen);
+    connect(this, &MainWindow::restSelected,
+            m_runManager, &RunManager::onRestChosen);
+
+    if (!m_runManager->loadFromFile(filePath)) {
+        QMessageBox::critical(this, "错误", "读取存档失败，可能文件损坏");
+        delete m_runManager;
+        m_runManager = nullptr;
+        return;
+    }
+    // 成功加载后，RunManager 会发出信号，事件页会自动显示
 }
 
 void MainWindow::on_exitButton_clicked()
@@ -250,7 +290,24 @@ void MainWindow::on_exitButton_clicked()
 
 void MainWindow::on_actionSaveGame_triggered()
 {
-    // [临时注释] 存档暂不可用
+    if (!m_runManager) {
+        QMessageBox::warning(this, "警告", "没有正在进行的游戏");
+        return;
+    }
+    // 检查是否在战斗中（通过stackedWidget当前是否为Game页面）
+    if (ui->stackedWidget->currentWidget() == m_game) {
+        QMessageBox::warning(this, "提示", "战斗中无法存档，请在事件页面（祈福、选牌、休息）时保存");
+        return;
+    }
+
+    QString filePath = QFileDialog::getSaveFileName(this, "保存游戏", "save.json", "JSON Files (*.json)");
+    if (filePath.isEmpty())
+        return;
+
+    if (m_runManager->saveToFile(filePath))
+        QMessageBox::information(this, "成功", "游戏已保存");
+    else
+        QMessageBox::critical(this, "错误", "保存失败");
 }
 void MainWindow::showVictoryScreenAndContinue()
 {

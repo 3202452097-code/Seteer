@@ -5,6 +5,10 @@
 #include <QRandomGenerator>
 #include <algorithm>
 #include <QDebug>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include "savedata.h"
 
 RunManager::RunManager(QObject* parent) : QObject(parent) {}
 
@@ -184,4 +188,66 @@ void RunManager::onBattleFinished(bool victory) {
     }
     m_floor++;
     nextFloor();
+}
+// ==================== 存档读档 ====================
+bool RunManager::saveToFile(const QString& path)
+{
+    RunSaveData data;
+    data.floor = m_floor;
+    data.hp = m_playerData.hp;
+    data.maxHp = m_playerData.maxHp;
+    data.strength = m_playerData.strength;
+    data.blessings = m_playerData.blessings;
+    data.deck = m_playerData.deck;
+
+    QJsonObject obj = data.toJson();
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly))
+        return false;
+    file.write(QJsonDocument(obj).toJson());
+    return true;
+}
+
+bool RunManager::loadFromFile(const QString& path)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly))
+        return false;
+    QByteArray raw = file.readAll();
+    QJsonDocument doc = QJsonDocument::fromJson(raw);
+    if (doc.isNull())
+        return false;
+
+    RunSaveData data;
+    data.fromJson(doc.object());
+
+    // 恢复数据
+    m_floor = data.floor;
+    m_playerData.hp = data.hp;
+    m_playerData.maxHp = data.maxHp;
+    m_playerData.strength = data.strength;
+    m_playerData.blessings = data.blessings;
+    m_playerData.deck = data.deck;
+
+    // 重新生成楼层计划（和 start() 中一致）
+    m_floorPlan.clear();
+    m_floorPlan.append({FloorStep::Blessing, "", 0});
+    for (int layer = 1; layer <= 4; layer++) {
+        m_floorPlan.append({FloorStep::Battle, "", layer});
+        if (layer < 4) {
+            m_floorPlan.append({FloorStep::CardPick, "", 0});
+            m_floorPlan.append({FloorStep::Rest, "", 0});
+        }
+    }
+    m_floorPlan.append({FloorStep::End, "", 0});
+
+    // 如果当前楼层已结束，直接结束
+    if (m_floor >= m_floorPlan.size() || m_floorPlan[m_floor].type == FloorStep::End) {
+        emit runFinished();
+        return true;
+    }
+
+    // 继续执行当前楼层（触发对应信号）
+    executeFloor(m_floorPlan[m_floor]);
+    return true;
 }

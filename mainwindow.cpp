@@ -20,6 +20,14 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     setWindowTitle("Seteer");
     ui->stackedWidget->setCurrentIndex(0);
+    ui->page_menu->setStyleSheet(
+        "QWidget#page_menu {"
+        "    background-image: url(:/resources/cards/bg.jpg);"
+        "    background-repeat: no-repeat;"
+        "    background-position: center;"
+        "    background-size: cover;"
+        "}"
+        );
 }
 
 MainWindow::~MainWindow()

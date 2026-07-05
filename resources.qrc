@@ -10,6 +10,42 @@
         <file>resources/cards/victory.jpg</file>
         <file>resources/sprite/dragon_the_end.png</file>
         <file>resources/sprite/enemy_dragon.png</file>
+        <file>../Users/23805/Downloads/enemy_doubao.png</file>
+        <file>../Users/23805/Downloads/enemy_python.png</file>
+        <file>../Users/23805/Downloads/enemy_linearalgebra.png</file>
+        <file>resources/sprite/enemy_freshman.png</file>
+        <file>resources/sprite/enemy_admath.png</file>
+        <file>resources/sprite/enemy_genius.png</file>
+        <file>resources/sprite/enemy_hajimi.png</file>
+        <file>resources/sprite/enemy_linearalgebra.png</file>
+        <file>resources/sprite/enemy_python.png</file>
+        <file>resources/sprite/enemy_doubao.png</file>
+        <file>resources/icons/status_weak.png</file>
+        <file>resources/icons/ability_admath_strength.png</file>
+        <file>resources/icons/ability_block_on_write.png</file>
+        <file>resources/icons/ability_dragon_regen.png</file>
+        <file>resources/icons/ability_dragon_scales.png</file>
+        <file>resources/icons/ability_genius_break.png</file>
+        <file>resources/icons/ability_random_letter_start.png</file>
+        <file>resources/icons/ability_temp_damage_per_card.png</file>
+        <file>resources/icons/blessing_tough_blessing.png</file>
+        <file>resources/icons/blessing_war_blessing.png</file>
+        <file>resources/icons/blessing_wisdom_blessing.png</file>
+        <file>resources/cards/energy_pulse.png</file>
+        <file>resources/cards/flash.png</file>
+        <file>resources/cards/focus.png</file>
+        <file>resources/cards/random_digit.png</file>
+        <file>resources/cards/swift_draw.png</file>
+        <file>resources/cards/temp_damage_per_card.png</file>
+        <file>resources/cards/triple_letter.png</file>
+        <file>resources/cards/weak.png</file>
+        <file>resources/cards/digit_diff_strength.png</file>
+        <file>resources/cards/random_letter_ability.png</file>
+        <file>resources/cards/vulnerable.png</file>
+        <file>resources/cards/block_on_write_ability.png</file>
+        <file>resources/cards/chaos_break.png</file>
+        <file>resources/cards/clear_burst.png</file>
+        <file>resources/cards/random_letter.png</file>
     </qresource>
     <qresource prefix="/new/prefix1"/>
 </RCC>

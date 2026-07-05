@@ -216,7 +216,9 @@ void Game::initBattle() {
         if (m_enemyId == "dragon") {
             maxEnemyW = 400;
         } else if (m_enemyId == "linearalgebra") {
-            maxEnemyW = 280;
+            maxEnemyW = 250;
+        } else if (m_enemyId == "hajimi"){
+            maxEnemyW=140;
         }
         // 未来在此扩展其他敌人的尺寸
     }
@@ -804,7 +806,7 @@ void Game::updateStatusIcons() {
     placeIcons(m_enemy.get(), enemyBarX, enemyIconY, m_enemyIcons);
 }
 QPixmap Game::getBlessingIcon(const QString& blessingId) const {
-    QString path = QString(":/icons/blessing_%1.png").arg(blessingId);
+    QString path = QString(":/resources/icons/blessing_%1.png").arg(blessingId);
     QPixmap pix(path);
     if (!pix.isNull())
         return pix.scaled(ICON_SIZE, ICON_SIZE, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);

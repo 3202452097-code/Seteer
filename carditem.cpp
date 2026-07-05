@@ -2,35 +2,48 @@
 #include "game.h"
 #include <QPainter>
 #include <QGraphicsScene>
-CardItem::CardItem(const Card& card, int handIndex, Game* game,
-                   QGraphicsItem* parent)
+CardItem::CardItem(const Card& card, int handIndex, Game* game, QGraphicsItem* parent)
     : QGraphicsPixmapItem(parent),
     m_card(card),
     m_handIndex(handIndex),
     m_game(game)
 {
-    // ── 从数据库获取卡牌数据 ──
     const CardData* data = card.data();
-    QPixmap pix;
+
+    // 使用统一的卡牌尺寸（从 game 类获取）
+    const int CARD_W = Game::CARD_WIDTH;    // 120
+    const int CARD_He = Game::CARD_HEIGHT;   // 180（新增）
+
+    QPixmap canvas(CARD_W, CARD_He);
+    canvas.fill(QColor(60, 60, 80)); // 背景色
+
+    QPainter p(&canvas);
+    p.setRenderHint(QPainter::Antialiasing);
+    p.setRenderHint(QPainter::SmoothPixmapTransform);
+
+    // 加载原图（如果有）
+    QPixmap originalPix;
     if (data) {
-        pix.load(data->imagePath);
+        originalPix.load(data->imagePath);
     }
-    // 图片加载失败 → 占位符
-    if (pix.isNull()) {
-        pix = QPixmap(120, 180);
-        pix.fill(QColor(60, 60, 80));
-        QPainter p(&pix);
-        p.setPen(Qt::white);
-        p.setFont(QFont("Sans", 12, QFont::Bold));
-        QString label = data
-                            ? (data->name + "\n" + QString::number(data->cost) + "费")
-                            : "???";
-        p.drawText(pix.rect(), Qt::AlignCenter, label);
-        p.end();
-    } else {
-        pix = pix.scaled(120, 180, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+
+    if (!originalPix.isNull()) {
+        // ★ 关键：使用 IgnoreAspectRatio 强制拉伸填满
+        QPixmap scaled = originalPix.scaled(CARD_W, CARD_He,
+                                            Qt::IgnoreAspectRatio,
+                                            Qt::SmoothTransformation);
+        p.drawPixmap(0, 0, scaled);
     }
-    setPixmap(pix);
+
+    // 绘制文字（名称 + 费用）
+    p.setPen(Qt::black);
+    p.setFont(QFont("Sans", 12, QFont::Bold));
+    QString label = data ? (data->name + "\n" + QString::number(data->cost) + "费") : "???";
+    p.drawText(canvas.rect(), Qt::AlignCenter, label);
+
+    p.end();
+
+    setPixmap(canvas);
     setAcceptHoverEvents(true);
     setCursor(Qt::OpenHandCursor);
 }

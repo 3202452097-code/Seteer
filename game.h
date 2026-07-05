@@ -138,10 +138,11 @@ private:
     static constexpr int HP_BAR_W = 200;
     static constexpr int HP_BAR_H = 18;
     static constexpr int CARD_WIDTH = 120;
+    static constexpr int CARD_HEIGHT = 180;
     static constexpr int CARD_OVERLAP = 60;
     static constexpr int HAND_Y_OFFSET = 200;
     static constexpr int PLAY_ZONE_Y = 200;
-    static constexpr int ICON_SIZE = 16;
+    static constexpr int ICON_SIZE = 24;
     static constexpr int ENERGY_BAR_W = 40;   // 竖条宽度
     static constexpr int ENERGY_BAR_H = 40;   // 竖条高度
 

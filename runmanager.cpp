@@ -146,7 +146,8 @@ QList<QString> RunManager::generateBlessingOptions() {
 
 QList<QString> RunManager::generateCardPickOptions() {
     QList<QString> pool = {"strike", "defend", "clear_burst",
-                           "triple_letter", "digit_diff_strength"};
+                           "triple_letter", "digit_diff_strength","block_on_write_ability","temp_damage_per_card"
+    };
     std::random_device rd;
     std::mt19937 g(rd());
     std::shuffle(pool.begin(), pool.end(), g);
